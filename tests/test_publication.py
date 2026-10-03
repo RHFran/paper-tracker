@@ -25,10 +25,12 @@ class PublicationTest(unittest.TestCase):
         for filename, guide, setup in (("README.md", "user-guide.md", "platform-setup.md"),
                                        ("README_中文.md", "user-guide_中文.md", "platform-setup_中文.md")):
             text = (ROOT / filename).read_text(encoding="utf-8")
-            self.assertTrue(text.startswith("# Paper Tracker"))
+            self.assertIn('<h1 align="center">Smart Paper Tracker</h1>', text)
+            self.assertIn('src="docs/assets/logo.svg"', text)
+            self.assertTrue((ROOT / "docs/assets/logo.svg").is_file())
             for relative in ("examples/preview/README.md", "docs/" + guide, "docs/" + setup):
                 self.assertIn(f"]({relative})", text)
-            self.assertIn("https://rhfran.github.io/paper-tracker/", text)
+            self.assertIn("https://rhfran.github.io/smart-paper-tracker/", text)
             details = (ROOT / "docs" / guide).read_text(encoding="utf-8")
             for language in ("en", "zh-CN"):
                 for extension in ("html", "txt", "json"):
@@ -55,7 +57,7 @@ class PublicationTest(unittest.TestCase):
                     with self.subTest(language=language, extension=extension):
                         self.assertEqual(Path(generated).read_bytes(), fixture.read_bytes())
                 text = Path(result["paths"]["html"]).read_text(encoding="utf-8")
-                self.assertIn("PAPER TRACKER", text)
+                self.assertIn("SMART PAPER TRACKER", text)
                 self.assertNotIn("<script", text.lower())
                 self.assertNotIn("<img", text.lower())
                 audit = json.loads(Path(result["paths"]["json"]).read_text(encoding="utf-8"))

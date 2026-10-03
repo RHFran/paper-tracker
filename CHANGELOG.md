@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Smart Paper Tracker branding
+
+- Adopt **Smart Paper Tracker** across the bilingual README, documentation, demo
+  and digest headers, with an original paper-and-tracking-signal SVG logo.
+- Move repository and demo links to `RHFran/smart-paper-tracker` and update the
+  GitHub Pages deployment guard for the renamed repository.
+- Retain the `paper-tracker` distribution and CLI, `literature-digest` alias,
+  `literature_digest` import, environment variables and configuration format.
+  Existing installations do not need a data or credentials migration.
+
 ## 2.1.0 — 2026-10-03
 
 ### Topic calendars and clearer onboarding

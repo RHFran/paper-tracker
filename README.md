@@ -1,4 +1,7 @@
-# Paper Tracker
+<p align="center">
+  <img src="docs/assets/logo.svg" width="104" height="104" alt="Smart Paper Tracker logo: a research paper with a tracking signal">
+</p>
+<h1 align="center">Smart Paper Tracker</h1>
 
 <a id="english"></a>
 
@@ -12,7 +15,7 @@ that matters most and for making more important judgments.
 Real digests require your LLM/API access. Token costs depend on the model, paper
 count and evidence length; the offline demo makes no API calls.
 
-[English](#english) · [中文](#chinese) · [HTML demo](https://rhfran.github.io/paper-tracker/?lang=en) · [Setup guide](docs/platform-setup.md)
+[English](#english) · [中文](#chinese) · [HTML demo](https://rhfran.github.io/smart-paper-tracker/?lang=en) · [Setup guide](docs/platform-setup.md)
 
 ## What you get
 
@@ -32,7 +35,7 @@ in one profile for a combined digest. [Ready-to-edit calendar example](config.ca
 
 ## See the result
 
-[Open the rendered HTML demo](https://rhfran.github.io/paper-tracker/?lang=en) · [中文演示](https://rhfran.github.io/paper-tracker/) · [Demo files and walkthrough](examples/preview/README.md)
+[Open the rendered HTML demo](https://rhfran.github.io/smart-paper-tracker/?lang=en) · [中文演示](https://rhfran.github.io/smart-paper-tracker/) · [Demo files and walkthrough](examples/preview/README.md)
 
 The demo is clearly labeled synthetic: no real papers, model calls or email.
 Setup generates an HTML preview; open the file path it prints in your browser.
@@ -45,7 +48,7 @@ repository `.html` files as source.
 
 Give **Codex, Claude Code, ChatGPT or dot** this source repository and ask:
 
-> Install Paper Tracker using its setup script. Help me configure my research
+> Install Smart Paper Tracker using its setup script. Help me configure my research
 > topics, LLM provider, language and local schedule, then generate a preview and
 > a real dry run. Ask before sending email or starting a background scheduler.
 
@@ -106,7 +109,10 @@ reuse rights permit. SMTP acceptance does not guarantee inbox delivery.
 
 <a id="中文说明"></a>
 
-# Paper Tracker
+<p align="center">
+  <img src="docs/assets/logo.svg" width="104" height="104" alt="Smart Paper Tracker logo: a research paper with a tracking signal">
+</p>
+<h1 align="center">Smart Paper Tracker</h1>
 
 <a id="chinese"></a>
 
@@ -117,7 +123,7 @@ reuse rights permit. SMTP acceptance does not guarantee inbox delivery.
 真实简报需要你配置 LLM/API。Token 费用随模型、论文数量和证据文本长度变化；
 离线演示不调用 API。
 
-[English](README.md#english) · [中文](#chinese) · [HTML 演示](https://rhfran.github.io/paper-tracker/) · [安装指南](docs/platform-setup_中文.md)
+[English](README.md#english) · [中文](#chinese) · [HTML 演示](https://rhfran.github.io/smart-paper-tracker/) · [安装指南](docs/platform-setup_中文.md)
 
 ## 你会得到什么
 
@@ -135,7 +141,7 @@ reuse rights permit. SMTP acceptance does not guarantee inbox delivery.
 
 ## 先看效果
 
-[直接打开 HTML 演示](https://rhfran.github.io/paper-tracker/) · [English demo](https://rhfran.github.io/paper-tracker/?lang=en) · [演示文件与说明](examples/preview/README.md)
+[直接打开 HTML 演示](https://rhfran.github.io/smart-paper-tracker/) · [English demo](https://rhfran.github.io/smart-paper-tracker/?lang=en) · [演示文件与说明](examples/preview/README.md)
 
 演示明确标注为合成内容，不检索真实论文、不调用模型、不发邮件。
 安装会生成 HTML 预览，用浏览器打开命令输出中的文件路径即可查看。
@@ -147,7 +153,7 @@ reuse rights permit. SMTP acceptance does not guarantee inbox delivery.
 
 把这份源码项目交给 **Codex、Claude Code、ChatGPT 或 dot**，告诉它：
 
-> 使用项目自带的安装脚本安装 Paper Tracker。帮我配置研究主题、LLM 服务、语言和
+> 使用项目自带的安装脚本安装 Smart Paper Tracker。帮我配置研究主题、LLM 服务、语言和
 > 当地运行计划，先生成演示，再做一次真实预览。发送邮件或启动后台定时任务前，先让我确认。
 
 Agent 需要能读取源码并执行命令的电脑环境。安装好 **Python 3.11+** 后，一条命令

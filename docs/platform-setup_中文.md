@@ -16,7 +16,7 @@
 替换方括号中的内容，不要填写密码或 API Key。
 
 > 请在[这台 Windows 电脑 / 指定的 Linux 服务器 / 我指定的已连接电脑或编程环境]
-> 安装 https://github.com/RHFran/paper-tracker 。先阅读 AGENTS.md 和
+> 安装 https://github.com/RHFran/smart-paper-tracker 。先阅读 AGENTS.md 和
 > docs/platform-setup_中文.md，检查源码，再运行仓库提供的安装脚本，使用隔离虚拟
 > 环境并保留已有私有配置。我的研究方向是[主题]，输出语言[语言]，时区[IANA 时区]，
 > 发送计划[星期或具体日期、本地时间]。主题、计划或模型不同时请使用独立订阅。
@@ -27,7 +27,7 @@
 - **Codex：** 把仓库作为项目打开，或在仓库目录运行 `codex`，粘贴上面的提示词。
   安装与登录按[官方 CLI 指南](https://learn.chatgpt.com/docs/codex/cli)操作。
 - **Claude Code：** 打开仓库，或在目录内运行 `claude`。不同系统的安装方式见
-  [官方安装指南](https://code.claude.com/docs/en/setup)。无需专用 Paper Tracker 插件。
+  [官方安装指南](https://code.claude.com/docs/en/setup)。无需专用 Smart Paper Tracker 插件。
 - **ChatGPT：** 使用能访问目标仓库和执行工具的任务。没有这些工具的普通对话可以
   提供命令，由你执行。[电脑访问](https://learn.chatgpt.com/docs/computer-use)与
   [远程连接](https://learn.chatgpt.com/docs/remote-connections)能力取决于客户端、
@@ -38,7 +38,7 @@
   安装在 dot 的云电脑和安装在你的电脑是两回事。
 
 隐藏输入 Key 的步骤应交给你在本地完成，不要把真实 Key 粘贴到提示词里。
-这是源码安装流程，并非已经上架的 Paper Tracker MCP 服务，也不意味着每种助手
+这是源码安装流程，并非已经上架的 Smart Paper Tracker MCP 服务，也不意味着每种助手
 客户端都能无条件“一键安装”。
 
 ## 2. 自己运行安装脚本
@@ -50,14 +50,14 @@ venv 可用后，项目安装本身不需要管理员权限。
 ### Linux、macOS 或已准备好的 WSL
 
 ```bash
-git clone https://github.com/RHFran/paper-tracker.git && cd paper-tracker && bash scripts/setup.sh
+git clone https://github.com/RHFran/smart-paper-tracker.git && cd smart-paper-tracker && bash scripts/setup.sh
 ```
 
 ### 原生 Windows PowerShell
 
 ```powershell
-git clone https://github.com/RHFran/paper-tracker.git
-if ($LASTEXITCODE -eq 0) { Set-Location paper-tracker; .\scripts\setup.ps1 }
+git clone https://github.com/RHFran/smart-paper-tracker.git
+if ($LASTEXITCODE -eq 0) { Set-Location smart-paper-tracker; .\scripts\setup.ps1 }
 ```
 
 已有仓库时，在仓库目录只运行安装脚本。如果组织策略阻止 PowerShell 脚本，

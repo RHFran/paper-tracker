@@ -13,7 +13,7 @@ from .sources import _reuse_license
 
 LABELS = {
     "zh": {
-        "title": "科研文献日报", "eyebrow": "PAPER TRACKER / RESEARCH BRIEF",
+        "title": "科研文献日报", "eyebrow": "SMART PAPER TRACKER / RESEARCH BRIEF",
         "overview": "综述导读", "papers": "逐篇精读", "references": "参考文献",
         "highlights": "核心亮点", "question": "科学问题", "methods": "实验或模型方法",
         "findings": "主要结果",
@@ -33,7 +33,7 @@ LABELS = {
         "demo_records": "演示记录", "demo_evidence": "合成夹具文本", "demo_footer": "合成演示仅用于核对版式、功能与引文编号。",
     },
     "en": {
-        "title": "Research Literature Digest", "eyebrow": "PAPER TRACKER / RESEARCH BRIEF",
+        "title": "Research Literature Digest", "eyebrow": "SMART PAPER TRACKER / RESEARCH BRIEF",
         "overview": "Research overview", "papers": "Paper-by-paper review", "references": "References",
         "highlights": "Core highlights", "question": "Scientific question", "methods": "Experimental or model methods",
         "findings": "Main results",

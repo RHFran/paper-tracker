@@ -117,7 +117,7 @@
   function setLanguage(next) {
     language = next === 'en' ? 'en' : 'zh-CN';
     document.documentElement.lang = language;
-    document.title = language === 'en' ? 'Paper Tracker · Research, with context.' : 'Paper Tracker · 留住思考的时间';
+    document.title = language === 'en' ? 'Smart Paper Tracker · Research, with context.' : 'Smart Paper Tracker · 留住思考的时间';
     for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = translations[language][node.dataset.i18n];
     for (const button of document.querySelectorAll('[data-language]')) {
       const active = button.dataset.language === language;

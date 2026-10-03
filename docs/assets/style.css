@@ -7,3 +7,8 @@
 .philosophy{padding:0 2px 29px;max-width:890px}.philosophy>p:last-child{font-size:12px;line-height:2;color:#6a808c;margin:10px 0 0}.export-links{display:flex;flex-wrap:wrap;gap:9px 15px;font-size:10px;border-top:1px solid var(--line);padding-top:16px;margin-top:20px;color:var(--muted)}
 
 .cost-note{background:#eef5f8;border-left:2px solid #95becd;padding:13px 16px;margin:0 0 27px;color:#5a7787;font-size:11px;line-height:1.9}
+
+/* Keep the full project name readable beside compact mobile controls. */
+.brand-icon{display:block;flex-shrink:0}.brand-name{display:block;line-height:1.4}
+@media(max-width:620px){.site-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}.brand{min-width:0}.brand-name{font-size:15px}.header-actions{gap:9px}.repo-link>span{display:none}.language-button{padding:4px 7px}.brand-caption{font-size:8px;letter-spacing:.03em}}
+@media(max-width:380px){.brand{gap:7px}.brand-icon{width:32px;height:32px}.brand-name{font-size:14px;max-width:125px}.site-header{gap:8px}.header-actions{gap:8px}}

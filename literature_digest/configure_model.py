@@ -72,7 +72,7 @@ def configure_model(args, input_fn=None, secret_fn=None, output_fn=print):
     existing = read_environment_file(secrets_path) if original_secrets is not None else {}
 
     output_fn("Live research digests require an LLM API. Token usage may incur provider charges, depending on your model, paper count and evidence length. No model call is made by this wizard or offline preview.")
-    output_fn("Paper Tracker uses non-streaming OpenAI-compatible Chat Completions with JSON-object output. Select a model that supports these options; provider presets are not live-tested compatibility guarantees.")
+    output_fn("Smart Paper Tracker uses non-streaming OpenAI-compatible Chat Completions with JSON-object output. Select a model that supports these options; provider presets are not live-tested compatibility guarantees.")
     names = list(PROVIDERS)
     for number, provider in enumerate(names, 1):
         output_fn(f"{number}. {PROVIDERS[provider][0]} ({provider})")
@@ -113,7 +113,7 @@ def configure_model(args, input_fn=None, secret_fn=None, output_fn=print):
         return {"status": "cancelled", "saved": False, "network_used": False, "mail_sent": False}
 
     values = {references["base_url_env"]: base, references["api_key_env"]: key, references["model_env"]: model}
-    secret_lines = (original_secrets.decode("utf-8-sig").splitlines() if original_secrets is not None else ["# Private Paper Tracker provider values. Never commit or share.", "# Literal KEY='value' data; no shell expansion."])
+    secret_lines = (original_secrets.decode("utf-8-sig").splitlines() if original_secrets is not None else ["# Private Smart Paper Tracker provider values. Never commit or share.", "# Literal KEY='value' data; no shell expansion."])
     kept = [line for line in secret_lines if line.strip().partition("=")[0].strip() not in reserved]
     # Quotes are literal outer delimiters; the parser never interprets content.
     secret_text = "\n".join(kept + [f"{name}='{value}'" for name, value in values.items()]) + "\n"

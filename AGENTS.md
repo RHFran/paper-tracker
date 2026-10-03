@@ -1,6 +1,6 @@
-# Paper Tracker agent setup contract
+# Smart Paper Tracker agent setup contract
 
-Paper Tracker is a source-installed Python research-digest application. Read the
+Smart Paper Tracker is a source-installed Python research-digest application. Read the
 concise README and `docs/platform-setup.md` before setup work.
 
 - Work on the computer/environment the user selects. Do not imply that an agent

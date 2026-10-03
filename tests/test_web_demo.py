@@ -2,6 +2,7 @@
 import json
 import re
 import unittest
+from xml.etree import ElementTree
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -32,6 +33,35 @@ class Markup(HTMLParser):
 
 
 class WebDemoTests(unittest.TestCase):
+    def test_brand_assets_are_self_contained_and_accessible(self):
+        for filename in ("logo.svg", "favicon.svg"):
+            with self.subTest(filename=filename):
+                svg = (DOCS / "assets" / filename).read_text(encoding="utf-8")
+                root = ElementTree.fromstring(svg)
+                self.assertEqual(root.tag, "{http://www.w3.org/2000/svg}svg")
+                self.assertIn("viewBox", root.attrib)
+                for forbidden in ("<script", "<foreignObject", "<image", "href=", "<text"):
+                    self.assertNotIn(forbidden, svg)
+        logo = ElementTree.parse(DOCS / "assets/logo.svg").getroot()
+        self.assertEqual(logo.find("{http://www.w3.org/2000/svg}title").text,
+                         "Smart Paper Tracker")
+        self.assertIsNotNone(logo.find("{http://www.w3.org/2000/svg}desc"))
+        html = (DOCS / "index.html").read_text(encoding="utf-8")
+        self.assertIn('aria-label="Smart Paper Tracker home"', html)
+        self.assertIn('src="assets/logo.svg"', html)
+        self.assertIn("Smart Paper Tracker", html)
+
+    def test_renamed_repository_and_pages_links_are_consistent(self):
+        for filename in ("README.md", "README_中文.md", "docs/index.html",
+                         "docs/platform-setup.md", "docs/platform-setup_中文.md",
+                         "docs/user-guide.md", "docs/user-guide_中文.md"):
+            with self.subTest(filename=filename):
+                text = (ROOT / filename).read_text(encoding="utf-8")
+                self.assertNotIn("github.com/RHFran/paper-tracker", text)
+                self.assertNotIn("rhfran.github.io/paper-tracker", text)
+        workflow = (ROOT / ".github/workflows/pages.yml").read_text(encoding="utf-8")
+        self.assertIn("github.repository == 'RHFran/smart-paper-tracker'", workflow)
+
     def test_local_assets_links_and_unique_ids(self):
         markup = Markup()
         markup.feed((DOCS / "index.html").read_text(encoding="utf-8"))

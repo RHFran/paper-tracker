@@ -1,4 +1,4 @@
-# Paper Tracker v2.1.0 validation record
+# Smart Paper Tracker v2.1.0 validation record
 
 Validated on 2026-10-03 in a Linux cloud workspace with Python 3.12.14. This
 record covers local verification of the integrated source before publication.

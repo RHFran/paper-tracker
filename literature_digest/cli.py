@@ -115,7 +115,7 @@ def _report(result):
 
 
 def _main(argv=None):
-    parser = argparse.ArgumentParser(description="Paper Tracker: research directions → evidence-aware literature email. Dry-run by default.")
+    parser = argparse.ArgumentParser(description="Smart Paper Tracker: research directions → evidence-aware literature email. Dry-run by default.")
     parser.add_argument("--config", default="config.json", help="Operator and reader JSON configuration")
     parser.add_argument("--profile", help="Select one profile; run/tick otherwise process all profiles")
     parser.add_argument("--env-file", help="Explicit private literal KEY=value file; no shell expansion")

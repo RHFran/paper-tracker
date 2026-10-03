@@ -1,4 +1,4 @@
-# Running Paper Tracker on a schedule
+# Running Smart Paper Tracker on a schedule
 
 These are examples to review and adapt, not installed services. First complete
 configuration validation, inspect a real dry run, and test your own sender.

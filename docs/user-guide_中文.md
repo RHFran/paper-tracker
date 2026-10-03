@@ -1,4 +1,4 @@
-# Paper Tracker 完整使用指南
+# Smart Paper Tracker 完整使用指南
 
 <a id="chinese"></a>
 
@@ -28,8 +28,8 @@
 
 ## 先体验离线演示
 
-[直接打开 HTML 演示](https://rhfran.github.io/paper-tracker/)，
-或查看[英文版](https://rhfran.github.io/paper-tracker/?lang=en)。
+[直接打开 HTML 演示](https://rhfran.github.io/smart-paper-tracker/)，
+或查看[英文版](https://rhfran.github.io/smart-paper-tracker/?lang=en)。
 
 不需要 API key、注册账号或邮箱配置。需要已有 Python 3.11+ 和时区数据；
 Windows 用户应先运行[安装脚本](../docs/platform-setup_中文.md)，安装时区包。
@@ -101,7 +101,8 @@ paper-tracker --config config.json init --yes \
 
 ## 从 1.x 原地升级
 
-项目现名 Paper Tracker，Python 发行包名改为 `paper-tracker`。先停止工作进程并完成下方第 1 步的备份，再在旧虚拟环境运行
+项目现名 **Smart Paper Tracker**，Python 发行包继续使用 2.0 起的 `paper-tracker`；
+现有命令、配置格式与环境变量名称保持兼容。先停止工作进程并完成下方第 1 步的备份，再在旧虚拟环境运行
 `python -m pip uninstall daily-literature-digest`，再在新源码目录运行
 `python -m pip install .`。私有配置和状态应保留在包文件之外；原命令别名与模块导入路径继续兼容。
 

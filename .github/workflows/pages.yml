@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.repository == 'RHFran/paper-tracker'
+    if: github.repository == 'RHFran/smart-paper-tracker'
     runs-on: ubuntu-latest
     permissions:
       contents: read

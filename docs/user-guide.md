@@ -1,4 +1,4 @@
-# Paper Tracker user guide
+# Smart Paper Tracker user guide
 
 <a id="english"></a>
 
@@ -35,8 +35,8 @@ and an SMTP sender for email delivery.
 
 ## Try the demo first
 
-[Open the rendered HTML demo](https://rhfran.github.io/paper-tracker/?lang=en)
-or [switch to Chinese](https://rhfran.github.io/paper-tracker/).
+[Open the rendered HTML demo](https://rhfran.github.io/smart-paper-tracker/?lang=en)
+or [switch to Chinese](https://rhfran.github.io/smart-paper-tracker/).
 
 No API keys, account or email configuration needed. Python 3.11+ and timezone
 data must be available; Windows users should run [setup](../docs/platform-setup.md)
@@ -112,7 +112,9 @@ options: put them before the command.
 
 ## Upgrading from 1.x
 
-Paper Tracker is the new project name; the distribution is now `paper-tracker`.
+The project is now **Smart Paper Tracker**. The distribution remains `paper-tracker`,
+as introduced in 2.0; existing commands, configurations and environment names stay
+compatible.
 After stopping the worker and completing the backup in step 1 below, uninstall
 the old distribution from an existing virtual environment with
 `python -m pip uninstall daily-literature-digest`, then install the new checkout

@@ -3,7 +3,7 @@
 [中文](platform-setup_中文.md) · [Home](../README.md) · [Configuration guide](user-guide.md)
 
 **Fastest route: give the repository and the prompt below to your coding agent.**
-Paper Tracker is the same Python program whichever agent helps install it. You
+Smart Paper Tracker is the same Python program whichever agent helps install it. You
 still choose a machine, enter a model API key locally, and configure SMTP before
 mail delivery. An agent conversation does not automatically provide an always-on
 server, an API allowance, or a sender mailbox.
@@ -17,7 +17,7 @@ A live dry run may call the LLM and can cost money even though it sends no email
 
 Replace the bracketed values. Do not include passwords or API keys.
 
-> Set up https://github.com/RHFran/paper-tracker on [this Windows computer / this
+> Set up https://github.com/RHFran/smart-paper-tracker on [this Windows computer / this
 > Linux server / the connected computer or coding environment I name]. Read
 > AGENTS.md and docs/platform-setup.md. Inspect the source, then run the provided
 > setup script in an isolated virtual environment, preserving existing private
@@ -46,7 +46,7 @@ Replace the bracketed values. Do not include passwords or API keys.
   An install on the dot's cloud computer is separate from an install on yours.
 
 The agent should hand you the hidden-key entry step. Never paste a real key into
-these prompts. This is a source-based workflow, not a published Paper Tracker MCP
+these prompts. This is a source-based workflow, not a published Smart Paper Tracker MCP
 server or a guaranteed one-click installation inside every assistant app.
 
 ## 2. Run the setup script yourself
@@ -59,14 +59,14 @@ access is needed once Python and venv are available.
 ### Linux, macOS, or an existing WSL environment
 
 ```bash
-git clone https://github.com/RHFran/paper-tracker.git && cd paper-tracker && bash scripts/setup.sh
+git clone https://github.com/RHFran/smart-paper-tracker.git && cd smart-paper-tracker && bash scripts/setup.sh
 ```
 
 ### Native Windows PowerShell
 
 ```powershell
-git clone https://github.com/RHFran/paper-tracker.git
-if ($LASTEXITCODE -eq 0) { Set-Location paper-tracker; .\scripts\setup.ps1 }
+git clone https://github.com/RHFran/smart-paper-tracker.git
+if ($LASTEXITCODE -eq 0) { Set-Location smart-paper-tracker; .\scripts\setup.ps1 }
 ```
 
 If you already have a checkout, open a terminal there and run just the last
@@ -146,7 +146,7 @@ selection, not automatic key rotation or failover across providers.
 
 ### Provider presets and compatibility
 
-Paper Tracker calls `<base URL>/chat/completions` with JSON-object output. Use a
+Smart Paper Tracker calls `<base URL>/chat/completions` with JSON-object output. Use a
 model supporting that request format. Native Anthropic Messages, Responses-only,
 and streaming-only endpoints are not interchangeable with it. A preset is a
 configuration starting point, not evidence that a particular model/key works.
