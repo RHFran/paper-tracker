@@ -108,6 +108,81 @@
     "warnings": [],
     "notice": "DEMO / synthetic, hand-authored offline introduction; no model or real literature used."
   },
+  "outlook": {
+    "synthesis": {
+      "paragraphs": [
+        {
+          "sentences": [
+            {
+              "text": "The synthetic examples cover controlled saplings and single-site classification; transfer to mature forests and other sites remains untested.",
+              "citations": [
+                {
+                  "ref": 1,
+                  "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
+                },
+                {
+                  "ref": 2,
+                  "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "open_questions": [
+      {
+        "text": "In independent mature stands, could species stratification improve interpretation of both emissions and mapping errors?",
+        "citations": [
+          {
+            "ref": 1,
+            "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
+          },
+          {
+            "ref": 2,
+            "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
+          }
+        ]
+      }
+    ],
+    "ideas": [
+      {
+        "status": "proposed",
+        "title": "Synthetic proposal: cross-site, species-stratified validation",
+        "basis": [
+          {
+            "text": "The synthetic examples cover controlled saplings and single-site classification; transfer to mature forests and other sites remains untested.",
+            "citations": [
+              {
+                "ref": 1,
+                "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
+              },
+              {
+                "ref": 2,
+                "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
+              }
+            ]
+          }
+        ],
+        "hypothesis": "Species and site stratification could reveal heterogeneity in emission responses and mapping errors.",
+        "experiment": "This is a fictional study plan: collect species labels, canopy observations and repeated emission measurements in independent mature stands; compare pooled and stratified analyses at equal sample size, ablating seasonal spectra and height separately.",
+        "validation": "Hold out sites; report emission prediction error, mapping macro-F1 and species-level intervals. Gains that disappear at new sites would not support transfer.",
+        "expected_value": "A positive test could guide targeted observations; a negative test would bound transfer from sapling experiments and single-site mapping. No real result is claimed in this fixture."
+      }
+    ],
+    "policy": "agent-research-outlook-v1",
+    "references": [
+      {
+        "number": 1,
+        "paper_key": "demo:forest-bvoc"
+      },
+      {
+        "number": 2,
+        "paper_key": "demo:canopy-species"
+      }
+    ],
+    "language": "en"
+  },
   "papers": [
     {
       "title": "[DEMO / SYNTHETIC] Drought intensity and species-specific canopy volatile emissions",
@@ -168,10 +243,6 @@
             {
               "text": "The simulated experiment followed 72 saplings from three tree species through two controlled drought cycles.",
               "evidence": "The simulated experiment followed 72 saplings from three tree species through two controlled drought cycles."
-            },
-            {
-              "text": "Interpretation is limited to controlled sapling experiments; mature forests and seasonal field variation were not tested.",
-              "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
             }
           ],
           "findings": [
@@ -182,6 +253,29 @@
             {
               "text": "Severe drought reduced emissions in all three simulated species relative to their watered controls.",
               "evidence": "Severe drought reduced emissions in all three simulated species relative to their watered controls."
+            }
+          ]
+        },
+        "perspective": {
+          "design_logic": [
+            {
+              "text": "Crossing species with drought intensity tests whether an overall mean conceals different response directions.",
+              "evidence": "The synthetic design evaluates species-specific emission responses rather than assuming a uniform drought effect.",
+              "kind": "inferred"
+            }
+          ],
+          "limitations": [
+            {
+              "text": "Interpretation is limited to controlled sapling experiments; mature forests and seasonal field variation were not tested.",
+              "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions.",
+              "kind": "reported"
+            }
+          ],
+          "inspiration": [
+            {
+              "text": "Repeat species-stratified drought comparisons in mature stands to test whether sapling responses transfer to canopy scale.",
+              "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions.",
+              "kind": "inferred"
             }
           ]
         },
@@ -256,16 +350,35 @@
             {
               "text": "The simulated dataset contains 120 plots covering four tree species; training and evaluation use spatially separate stands.",
               "evidence": "The synthetic dataset contains 120 four-species plots; training and evaluation use spatially separate stands."
-            },
-            {
-              "text": "The simulated comparison covers one site; transfer to other forests, sensors, and rare species remains untested.",
-              "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
             }
           ],
           "findings": [
             {
               "text": "In the simulated held-out stands, spectral-plus-height features achieve macro-F1 0.82 versus 0.74 for the single-season spectral baseline.",
               "evidence": "Simulated held-out macro-F1 was 0.82 for spectral-plus-height features and 0.74 for the single-season spectral baseline."
+            }
+          ]
+        },
+        "perspective": {
+          "design_logic": [
+            {
+              "text": "Seasonal spectra and canopy height provide complementary inputs; separate stands test beyond training-location memorization.",
+              "evidence": "The synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination.",
+              "kind": "inferred"
+            }
+          ],
+          "limitations": [
+            {
+              "text": "The simulated comparison covers one site; transfer to other forests, sensors, and rare species remains untested.",
+              "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested.",
+              "kind": "reported"
+            }
+          ],
+          "inspiration": [
+            {
+              "text": "Ablate season count, structural features and site holdouts separately to identify which information supports transfer.",
+              "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested.",
+              "kind": "inferred"
             }
           ]
         },

@@ -12,12 +12,13 @@ from contextlib import redirect_stdout, redirect_stderr
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-from literature_digest.agent_jobs import (create_job, tool, recover_job, _load, _save)
+from literature_digest.agent_jobs import (create_job, tool, recover_job, _load, _save, _validate)
 from literature_digest.agent_runner import command, run_agent, AgentInterrupted
 from literature_digest.cli import main, _run_one
 from literature_digest.config import DEFAULTS, load_configs, validate_config
 from literature_digest.connector_delivery import begin_send, confirm_sent
 from literature_digest.models import Paper
+from literature_digest.outlook import empty_outlook
 from literature_digest.pipeline import config_fingerprint
 from literature_digest.state import State, state_scope
 
@@ -47,9 +48,21 @@ class AgentJobs(unittest.TestCase):
 
     def data(self):
         claim={'text':'The synthetic source describes a tested agent method.','evidence':self.evidence[:80]}
+        perspective = {field: [{'text': text, 'evidence':claim['evidence'], 'kind':'inferred'}] for field, text in (
+            ('design_logic', 'The design uses an agent to make the forecast workflow testable.'),
+            ('limitations', 'The supplied evidence does not establish held-out task robustness.'),
+            ('inspiration', 'A held-out comparison could test whether verification improves reliability.'))}
         return {'decisions':[{'key':self.paper.key,'include':True,'topic_ids':['earth'],'reason':'Direct relevance to Earth agents.','evidence':self.evidence[:80]}],
-                'analyses':[{'key':self.paper.key,'fields':{'highlights':[],'question':[],'methods':[],'findings':[claim]}}],
+                'analyses':[{'key':self.paper.key,'fields':{'highlights':[],'question':[claim],'methods':[claim],'findings':[claim]},'perspective':perspective}],
                 'overview':{'paragraphs':[{'sentences':[{'text':claim['text'],'citations':[{'ref':1,'evidence':claim['evidence']}]}]}]},
+                'outlook':{'synthesis':{'paragraphs':[{'sentences':[{'text':claim['text'],'citations':[{'ref':1,'evidence':claim['evidence']}]}]}]},
+                           'open_questions':[{'text':'Does this synthetic method generalize to held-out tasks?', 'citations':[{'ref':1,'evidence':claim['evidence']}]}],
+                           'ideas':[{'status':'proposed','title':'Test held-out task robustness',
+                                     'basis':[{'text':claim['text'],'citations':[{'ref':1,'evidence':claim['evidence']}]}],
+                                     'hypothesis':'Explicit verification could improve complete-task reliability.',
+                                     'experiment':'Compare fixed-budget agents with and without verification on held-out tasks.',
+                                     'validation':'Measure complete-task success; no gain over the baseline would refute the hypothesis.',
+                                     'expected_value':'The comparison could identify whether verification merits its compute cost.'}]},
                 'coverage_notes':'One synthetic offline source query; not an exhaustive bibliography.'}
 
     def submission(self, data=None):
@@ -103,7 +116,7 @@ class AgentJobs(unittest.TestCase):
 
     def test_source_operation_required_and_coverage_is_bounded(self):
         job=create_job(self.config,self.now)
-        data={'decisions':[],'analyses':[],'overview':{'paragraphs':[]},'coverage_notes':'No retrieval performed; this must be rejected.'}
+        data={'decisions':[],'analyses':[],'overview':{'paragraphs':[]},'outlook':empty_outlook(),'coverage_notes':'No retrieval performed; this must be rejected.'}
         with self.assertRaisesRegex(ValueError,'ingested'):tool(self.config,job['job_id'],'finalize',input_path=self.submission(data))
         self.source(job);result=tool(self.config,job['job_id'],'finalize',input_path=self.submission())
         audit=json.loads(Path(result['paths']['json']).read_text(encoding='utf-8'))
@@ -202,6 +215,33 @@ class AgentJobs(unittest.TestCase):
     def test_backend_specific_effort_validation(self):
         self.config['agent'].update(backend='claude',reasoning_effort='ultra')
         with self.assertRaisesRegex(ValueError,'reasoning_effort'):validate_config(self.config)
+
+    def test_new_contract_requires_six_sections_and_closing_outlook(self):
+        job=create_job(self.config,self.now);self.source(job)
+        self.assertEqual(json.loads(Path(job['contract_path']).read_text())['schema_version'],2)
+        for mutation in ('outlook','perspective','question','methods','results'):
+            data=self.data()
+            if mutation=='outlook':data.pop('outlook')
+            if mutation=='perspective':data['analyses'][0].pop('perspective')
+            if mutation in ('question','methods'):data['analyses'][0]['fields'][mutation]=[]
+            if mutation=='results':data['analyses'][0]['fields']['findings']=[]
+            with self.subTest(mutation=mutation),self.assertRaises(ValueError):
+                tool(self.config,job['job_id'],'validate',input_path=self.submission(data))
+        result=tool(self.config,job['job_id'],'finalize',input_path=self.submission())
+        audit=json.loads(Path(result['paths']['json']).read_text())
+        self.assertIn('outlook',audit)
+        self.assertIn('perspective',audit['papers'][0]['analysis'])
+        text=Path(result['paths']['text']).read_text() if 'text' in result['paths'] else Path(result['paths']['txt']).read_text()
+        self.assertLess(text.index('Research ideas to test'),text.index('\nReferences\n'))
+
+    def test_frozen_schema_one_submission_remains_valid(self):
+        job=create_job(self.config,self.now);self.source(job)
+        state=self.state();record=_load(state,self.config,job['job_id'])
+        record['schema_version']=1
+        data=self.data();data.pop('outlook');data['analyses'][0].pop('perspective')
+        data['analyses'][0]['fields']['question']=[];data['analyses'][0]['fields']['methods']=[]
+        papers,overview,notes,outlook=_validate(state,self.config,record,data)
+        self.assertEqual(len(papers),1);self.assertIsNone(outlook)
 
 
 if __name__=='__main__':unittest.main()

@@ -39,6 +39,8 @@ assert.equal(document.documentElement.lang, 'zh-CN');
 assert.match(document.title, /^Super Paper radar/);
 assert.equal(nodes.get('paper-list').children.length, 2);
 assert.equal(nodes.get('reference-list').children.length, 2);
+for (const heading of ['问题与设计','科学问题','方法链','结果与亮点','局限性','有何启发']) assert(nodes.get('paper-list').textContent.includes(heading));
+assert.match(nodes.get('outlook-content').textContent, /验证与反证/);
 assert.match(nodes.get('schedule-summary').textContent, /08:00/);
 for (const [topic, count] of [['bvoc',1],['canopy',1],['all',2],['bvoc',1]]) {
   nodes.get('topic').value = topic; nodes.get('topic').dispatch('change');
@@ -57,6 +59,8 @@ assert.equal(nodes.get('bib-link').href, 'preview/demo.en.bib');
 assert.equal(buttons[1].attrs['aria-pressed'], 'true');
 assert.match(nodes.get('paper-list').textContent, /Moderate drought/);
 assert.match(nodes.get('paper-list').textContent, /SYNTHETIC SOURCE/);
+assert.match(nodes.get('outlook-content').textContent, /Validation and falsification/);
+assert.match(nodes.get('outlook-content').textContent, /fictional study plan/);
 for (const [id, value] of Object.entries({ schedule: 'weekly', time: '09:30', timezone: 'UTC' })) { nodes.get(id).value = value; nodes.get(id).dispatch('change'); }
 assert.match(nodes.get('schedule-summary').textContent, /Every Monday · 09:30 · UTC \(not enabled\)/);
 nodes.get('time').value = ''; nodes.get('time').dispatch('input');

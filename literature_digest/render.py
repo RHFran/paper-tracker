@@ -9,6 +9,8 @@ from urllib.parse import urlsplit
 from .analysis import (FIELDS, compose_overview, is_chinese, output_language,
                        reference_map, unique_papers, validate_analysis, validate_overview)
 from .models import TRACKS
+from .outlook import IDEA_FIELDS, checked_outlook
+from .perspective import checked_perspective
 from .sources import _reuse_license
 
 LABELS = {
@@ -62,7 +64,7 @@ DEFAULT_ENGLISH_TOPICS = {
 # IP literals are intentionally not accepted for remote email image embedding.
 TRUSTED_IMAGE_HOSTS = frozenset({
     "cdn.ncbi.nlm.nih.gov", "pmc.ncbi.nlm.nih.gov", "www.ncbi.nlm.nih.gov",
-    "europepmc.org", "www.europepmc.org", "www.ebi.ac.uk",
+    "europepmc.org", "www.europepmc.org", "www.ebi.ac.uk", "arxiv.org", "export.arxiv.org",
 })
 
 
@@ -158,6 +160,23 @@ def _checked_overview(papers, config, overview, language):
         return compose_overview(papers, {**config, "llm": {"enabled": False}}, None)
 
 
+def _paper_sections(paper, fields, labels, language, allow_synthetic=False):
+    perspective = checked_perspective(paper, language, allow_synthetic=allow_synthetic)
+    if perspective is None:
+        return [(key, labels[key], fields.get(key, [])) for key in ("highlights", "question", "methods", "findings")]
+    zh = is_chinese(language)
+    titles = (["问题与设计", "科学问题", "方法链", "结果与亮点", "局限性", "有何启发"] if zh else
+              ["Problem and design", "Scientific question", "Method chain", "Results and highlights", "Limitations", "Research implications"])
+    results, seen = [], set()
+    for claim in fields.get("findings", []) + fields.get("highlights", []):
+        if claim["text"] not in seen:
+            results.append(claim)
+            seen.add(claim["text"])
+    return list(zip(("design_logic", "question", "methods", "findings", "limitations", "inspiration"), titles,
+                    (perspective["design_logic"], fields.get("question", []), fields.get("methods", []),
+                     results, perspective["limitations"], perspective["inspiration"])))
+
+
 def _citation_html(citations):
     links = ['<a href="#ref-' + str(c["ref"]) + '" style="color:#17614d;text-decoration:none">' + str(c["ref"]) + '</a>'
              for c in citations]
@@ -170,14 +189,14 @@ def _excerpt(text, limit=1400):
     return text[:limit].rsplit(" ", 1)[0].rstrip(" ,;，；") + "…"
 
 
-def _figures(paper, config):
+def _figures(paper, config, delivery="remote"):
     options = config.get("images", {})
     mode = options.get("mode", "off") if isinstance(options, dict) else str(options)
     if mode not in {"links", "embed"}:
         return []
     limit = options.get("max_per_paper", 2) if isinstance(options, dict) else 2
     try:
-        limit = min(6, max(0, int(limit)))
+        limit = min(10, max(0, int(limit)))
     except (ValueError, TypeError):
         limit = 2
     result = []
@@ -193,8 +212,15 @@ def _figures(paper, config):
                            and isinstance(attribution, str) and bool(attribution.strip())
                            and isinstance(license_value, str) and _reuse_license(license_value)
                            and bool(source_url))
+        verified_original = (figure.get("verified_original") is True
+                             and figure.get("provenance", {}).get("license_evidence_verified") is True
+                             and isinstance(figure.get("asset_sha256"), str)
+                             and re.fullmatch(r"[a-f0-9]{64}", figure["asset_sha256"])
+                             and figure.get("content_id") == "figure-" + figure["asset_sha256"] + "@super-paper-radar")
         embed = (safe_image_url(figure.get("url", ""))
-                 if mode == "embed" and figure.get("embed_allowed") is True and explicit_rights else "")
+                 if mode == "embed" and figure.get("embed_allowed") is True and (explicit_rights or verified_original) else "")
+        if embed and verified_original and delivery == "inline":
+            embed = "cid:" + figure["content_id"]
         result.append({**figure, "source_url": source_url or image_url, "embed": embed})
         if len(result) >= limit:
             break
@@ -247,7 +273,60 @@ def _reference_downloads(meta, language):
             '<p style="margin:0;font-size:12px;overflow-wrap:anywhere">' + actions + '</p></td></tr>')
     return lines, html
 
-def render(papers, meta, config=None, overview=None):
+def _outlook_blocks(outlook, language):
+    """Render the source-grounded closing argument and visibly prospective ideas."""
+    zh = is_chinese(language)
+    labels = ({"title": "本期总结与研究启发", "questions": "仍待解决的问题",
+               "ideas": "值得验证的研究设想", "basis": "论文依据", "hypothesis": "可检验假设",
+               "experiment": "实验设计", "validation": "验证与反证", "expected_value": "预期价值"}
+              if zh else
+              {"title": "Closing synthesis and research outlook", "questions": "Open questions",
+               "ideas": "Research ideas to test", "basis": "Evidence basis", "hypothesis": "Testable hypothesis",
+               "experiment": "Experiment design", "validation": "Validation and falsification", "expected_value": "Expected value"})
+    lines = ["", labels["title"]]
+    html = ['<tr><td style="padding:30px 36px;background:#f4f7ef;border-top:2px solid #b0c573">'
+            '<h2 style="margin:0 0 20px;color:#173f35;font-size:22px;font-family:Georgia,serif">'
+            + escape(labels["title"]) + '</h2>']
+
+    def cited(statements):
+        text, fragments = [], []
+        for item in statements:
+            refs = ",".join(str(c["ref"]) for c in item["citations"])
+            text.append(item["text"] + " [" + refs + "]")
+            fragments.append(escape(item["text"]) + _citation_html(item["citations"]))
+        return " ".join(text), " ".join(fragments)
+
+    for paragraph in outlook["synthesis"]["paragraphs"]:
+        text, fragment = cited(paragraph["sentences"])
+        lines += [text, ""]
+        html.append('<p style="margin:0 0 14px;font-size:15px;line-height:1.9;color:#2d4238">' + fragment + '</p>')
+    lines.append(labels["questions"])
+    html.append('<h3 style="margin:22px 0 12px;font-size:17px;color:#173f35">' + escape(labels["questions"]) + '</h3><ul style="padding-left:20px">')
+    for question in outlook["open_questions"]:
+        text, fragment = cited([question])
+        lines.append("- " + text)
+        html.append('<li style="margin:0 0 10px;font-size:14px;line-height:1.8">' + fragment + '</li>')
+    html.append('</ul><h3 style="margin:24px 0 14px;font-size:17px;color:#173f35">' + escape(labels["ideas"]) + '</h3>')
+    lines += ["", labels["ideas"]]
+    for index, idea in enumerate(outlook["ideas"], 1):
+        lines += ["", str(index) + ". " + idea["title"]]
+        html.append('<div style="margin:0 0 18px;padding:18px;background:#fff;border:1px solid #dfe6dc;border-radius:6px">'
+                    '<h4 style="margin:0 0 12px;font-size:16px;line-height:1.6;color:#173f35">'
+                    + str(index) + '. ' + escape(idea["title"]) + '</h4>')
+        text, fragment = cited(idea["basis"])
+        lines.append(labels["basis"] + ": " + text)
+        html.append('<p style="margin:0 0 10px;font-size:13px;line-height:1.8"><strong>'
+                    + escape(labels["basis"]) + ':</strong> ' + fragment + '</p>')
+        for field in IDEA_FIELDS:
+            lines.append(labels[field] + ": " + idea[field])
+            html.append('<p style="margin:0 0 10px;font-size:13px;line-height:1.8"><strong>'
+                        + escape(labels[field]) + ':</strong> ' + escape(idea[field]) + '</p>')
+        html.append('</div>')
+    html.append('</td></tr>')
+    return lines, "".join(html)
+
+
+def render(papers, meta, config=None, overview=None, outlook=None):
     """Return plain text and email-client-friendly HTML, with one global bibliography."""
     config = config or {}
     language = output_language(config)
@@ -354,29 +433,39 @@ def render(papers, meta, config=None, overview=None):
                 body.append('<p style="margin:0 0 6px;font-size:12px;color:#53685b">' + escape(journal_date) + '</p>')
                 if authors:
                     body.append('<p style="margin:0 0 18px;font-size:12px;color:#6c776d">' + escape(authors) + '</p>')
-                # Four distinct editorial blocks; unsupported blocks disappear.
-                for field in ("highlights", "question", "methods", "findings"):
-                    claims = fields.get(field, [])
+                # New agent reviews have exactly six sections; old reports retain their schema.
+                for field, section_title, claims in _paper_sections(paper, fields, labels, language, allow_synthetic=bool(meta.get("demo"))):
                     if not claims:
                         continue
-                    lines.append(labels[field] + ":")
-                    lines.extend("- " + claim["text"] + f" [{number}]" for claim in claims)
+                    lines.append(section_title + ":")
                     background = "background:#f3f7ed;" if field == "highlights" else ""
-                    body.append('<div style="margin:15px 0;padding:12px 14px;border-left:3px solid ' + ("#9eb85a" if field == "highlights" else "#dfe6dc") + ';' + background + '"><h4 style="margin:0 0 7px;font-size:12px;color:#49624b">' + escape(labels[field]) + '</h4>')
+                    body.append('<div style="margin:15px 0;padding:12px 14px;border-left:3px solid ' + ("#9eb85a" if field == "highlights" else "#dfe6dc") + ';' + background + '"><h4 style="margin:0 0 7px;font-size:12px;color:#49624b">' + escape(section_title) + '</h4>')
                     for claim in claims:
-                        body.append('<p style="margin:5px 0;font-size:14px;line-height:1.8;color:#293d30">' + escape(claim["text"]) + _citation_html([{"ref": number}]) + '</p>')
+                        kind = ("作者说明" if claim.get("kind") == "reported" else "分析推论") if is_chinese(language) else ("Author-reported" if claim.get("kind") == "reported" else "Interpretation")
+                        qualifier = "" if "kind" not in claim else kind + ": "
+                        lines.append("- " + qualifier + claim["text"] + f" [{number}]")
+                        badge = '<span style="font-size:10px;color:#71806e">' + escape(qualifier) + '</span>' if qualifier else ""
+                        body.append('<p style="margin:5px 0;font-size:14px;line-height:1.8;color:#293d30">' + badge + escape(claim["text"]) + _citation_html([{"ref": number}]) + '</p>')
                     body.append('</div>')
                 if not has_claims and paper.abstract:
                     abstract = _excerpt(paper.abstract)
                     lines += [labels["abstract"] + ":", abstract]
                     body.append('<div style="margin:16px 0"><h4 style="margin:0 0 8px;color:#49624b;font-size:12px">' + escape(labels["abstract"]) + '</h4><p style="font-size:14px;line-height:1.8;color:#46534a;margin:0">' + escape(abstract) + '</p></div>')
-                for figure in _figures(paper, config):
+                for figure in _figures(paper, config, meta.get("figure_delivery", "remote")):
                     caption = str(figure.get("caption") or labels["figure"])
-                    lines += [labels["figure"] + ": " + caption, figure["source_url"]]
+                    heading = str(figure.get("id") or labels["figure"])
+                    explanation = str(figure.get("explanation") or "")
+                    lines += [labels["figure"] + ": " + heading, caption]
+                    if explanation:
+                        lines.append(explanation)
+                    lines.append(figure["source_url"])
                     body.append('<div style="margin:20px 0 14px;border-top:1px solid #e6ebdf;padding-top:16px">')
+                    if not figure["embed"] and not figure.get("caption") and not explanation:
+                        body.append(_link(figure["source_url"], labels["figure_source"]) + '</div>')
+                        continue
                     if figure["embed"]:
                         body.append('<img src="' + escape(figure["embed"], quote=True) + '" alt="' + escape(caption, quote=True) + '" width="640" style="display:block;max-width:100%;width:100%;height:auto;border:0" />')
-                    body.append('<p style="margin:9px 0 5px;font-size:12px;line-height:1.6;color:#63705f">' + escape(caption) + '</p>')
+                    body.append('<p style="margin:9px 0 5px;font-size:12px;line-height:1.6;color:#63705f"><strong>' + escape(heading) + '</strong>' + (' · ' + escape(explanation) if explanation else ' · ' + escape(caption)) + '</p>')
                     rights = []
                     for key in ("license", "attribution"):
                         if figure.get(key):
@@ -384,6 +473,8 @@ def render(papers, meta, config=None, overview=None):
                     if rights:
                         lines.append(" · ".join(rights))
                         body.append('<p style="margin:5px 0;font-size:10px;color:#788071">' + escape(" · ".join(rights)) + '</p>')
+                    if safe_link(figure.get("license_url", "")):
+                        lines.append("License evidence: " + figure["license_url"])
                     body.append(_link(figure["source_url"], labels["figure_source"]) + '</div>')
                 actions = []
                 for url, label in ((paper.url, labels["read"]), (paper.full_text_url, labels["fulltext"])):
@@ -395,6 +486,11 @@ def render(papers, meta, config=None, overview=None):
                 body.append('</td></tr></table></td></tr>')
 
     if papers and not meta.get("failure"):
+        closing = checked_outlook(outlook, papers, language, allow_synthetic=bool(meta.get("demo")))
+        if closing:
+            closing_lines, closing_html = _outlook_blocks(closing, language)
+            lines.extend(closing_lines)
+            body.append(closing_html)
         lines += ["", labels["references"]]
         body.append('<tr><td style="padding:28px 36px 30px;background:#f7f9f3;border-top:1px solid #dfe6dc"><h2 style="margin:0 0 17px;font-size:18px;color:#173f35">' + escape(labels["references"]) + '</h2>')
         for paper in papers:

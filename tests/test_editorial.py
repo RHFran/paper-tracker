@@ -9,6 +9,7 @@ from literature_digest.analysis import (FIELDS, analyze, compose_overview,
     reference_map, validate_analysis, validate_overview)
 from literature_digest.models import Paper
 from literature_digest.render import render, safe_image_url, safe_link
+from model_fixture import perspective_fixture
 
 EVIDENCE_A = "Synthetic source A reports a controlled toy experiment with three simulated inputs."
 EVIDENCE_B = "Synthetic source B evaluates a toy model on an artificial testing grid."
@@ -88,7 +89,9 @@ class AnalysisLanguageTests(unittest.TestCase):
     def test_model_prompt_uses_configured_language(self):
         p = fixture_paper()
         config = cfg("en"); config["llm"]["enabled"] = True
-        http = FakeHttp(p.analysis["fields"])
+        fields = copy.deepcopy(p.analysis["fields"])
+        fields["methods"] = [{"text": "The fixture uses a controlled toy experiment.", "evidence": ANCHOR_A}]
+        http = FakeHttp({"fields": fields, "perspective": perspective_fixture(ANCHOR_A)})
         with patch.dict(os.environ, {"TEST_EDITORIAL_BASE": "https://model.example.org/v1",
                                     "TEST_EDITORIAL_KEY": "synthetic-token", "TEST_EDITORIAL_MODEL": "fixture"}):
             result = analyze(p, config, http)
@@ -100,7 +103,9 @@ class AnalysisLanguageTests(unittest.TestCase):
     def test_truncation_cannot_cite_unseen_evidence(self):
         p = fixture_paper(); p.abstract = "An initial synthetic prefix. " * 12 + EVIDENCE_A
         config = cfg(); config["llm"].update(enabled=True, max_evidence_chars=100)
-        http = FakeHttp(p.analysis["fields"])
+        fields = copy.deepcopy(p.analysis["fields"])
+        fields["methods"] = [{"text": "The fixture uses a controlled toy experiment.", "evidence": ANCHOR_A}]
+        http = FakeHttp({"fields": fields, "perspective": perspective_fixture(ANCHOR_A)})
         with patch.dict(os.environ, {"TEST_EDITORIAL_BASE": "https://model.example.org/v1",
                                     "TEST_EDITORIAL_KEY": "synthetic-token", "TEST_EDITORIAL_MODEL": "fixture"}):
             result = analyze(p, config, http)

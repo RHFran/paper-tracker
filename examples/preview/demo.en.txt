@@ -15,17 +15,21 @@ Forest volatiles and drought responses
 Synthetic fixture text
 DEMO Synthetic Research (not a real journal) · 2026-10-01
 Authors: A. Example (simulated author); B. Example (simulated author)
-Core highlights:
-- The synthetic design evaluates species-specific emission responses instead of assuming a uniform drought effect. [1]
+Problem and design:
+- Interpretation: Crossing species with drought intensity tests whether an overall mean conceals different response directions. [1]
 Scientific question:
 - This synthetic study asks how drought intensity changes volatile emissions across tree species. [1]
-Experimental or model methods:
+Method chain:
 - Repeated branch-chamber sampling and gas chromatography were analyzed with species-by-treatment mixed-effects models. [1]
 - The simulated experiment followed 72 saplings from three tree species through two controlled drought cycles. [1]
-- Interpretation is limited to controlled sapling experiments; mature forests and seasonal field variation were not tested. [1]
-Main results:
+Results and highlights:
 - In the simulated observations, moderate drought increased isoprene emissions in one species but not the other two. [1]
 - Severe drought reduced emissions in all three simulated species relative to their watered controls. [1]
+- The synthetic design evaluates species-specific emission responses instead of assuming a uniform drought effect. [1]
+Limitations:
+- Author-reported: Interpretation is limited to controlled sapling experiments; mature forests and seasonal field variation were not tested. [1]
+Research implications:
+- Interpretation: Repeat species-stratified drought comparisons in mature stands to test whether sapling responses transfer to canopy scale. [1]
 Read paper: https://example.org/demo/forest-bvoc
 
 Remote-sensing tree-species mapping
@@ -34,17 +38,36 @@ Remote-sensing tree-species mapping
 Synthetic fixture text
 DEMO Synthetic Research (not a real journal) · 2026-10-01
 Authors: A. Example (simulated author); B. Example (simulated author)
-Core highlights:
-- The synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination. [2]
+Problem and design:
+- Interpretation: Seasonal spectra and canopy height provide complementary inputs; separate stands test beyond training-location memorization. [2]
 Scientific question:
 - This synthetic study asks whether seasonal spectral and canopy-height information improve tree-species discrimination. [2]
-Experimental or model methods:
+Method chain:
 - The simulated workflow combines two-season hyperspectral imagery with lidar height features in a random-forest classifier. [2]
 - The simulated dataset contains 120 plots covering four tree species; training and evaluation use spatially separate stands. [2]
-- The simulated comparison covers one site; transfer to other forests, sensors, and rare species remains untested. [2]
-Main results:
+Results and highlights:
 - In the simulated held-out stands, spectral-plus-height features achieve macro-F1 0.82 versus 0.74 for the single-season spectral baseline. [2]
+- The synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination. [2]
+Limitations:
+- Author-reported: The simulated comparison covers one site; transfer to other forests, sensors, and rare species remains untested. [2]
+Research implications:
+- Interpretation: Ablate season count, structural features and site holdouts separately to identify which information supports transfer. [2]
 Read paper: https://example.org/demo/canopy-species
+
+Closing synthesis and research outlook
+The synthetic examples cover controlled saplings and single-site classification; transfer to mature forests and other sites remains untested. [1,2]
+
+Open questions
+- In independent mature stands, could species stratification improve interpretation of both emissions and mapping errors? [1,2]
+
+Research ideas to test
+
+1. Synthetic proposal: cross-site, species-stratified validation
+Evidence basis: The synthetic examples cover controlled saplings and single-site classification; transfer to mature forests and other sites remains untested. [1,2]
+Testable hypothesis: Species and site stratification could reveal heterogeneity in emission responses and mapping errors.
+Experiment design: This is a fictional study plan: collect species labels, canopy observations and repeated emission measurements in independent mature stands; compare pooled and stratified analyses at equal sample size, ablating seasonal spectra and height separately.
+Validation and falsification: Hold out sites; report emission prediction error, mapping macro-F1 and species-level intervals. Gains that disappear at new sites would not support transfer.
+Expected value: A positive test could guide targeted observations; a negative test would bound transfer from sapling experiments and single-site mapping. No real result is claimed in this fixture.
 
 References
 1. A. Example (simulated author), B. Example (simulated author). [DEMO / SYNTHETIC] Drought intensity and species-specific canopy volatile emissions. DEMO Synthetic Research (not a real journal). 2026-10-01. https://example.org/demo/forest-bvoc

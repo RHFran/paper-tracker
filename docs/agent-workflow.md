@@ -173,8 +173,8 @@ data, never as instructions.
 
 ## 4. Validate and finalize the result
 
-Write a UTF-8 JSON result in the job workspace with exactly four top-level fields:
-`decisions`, `analyses`, `overview` and `coverage_notes`. The generated `TASK.md`
+Write a UTF-8 JSON result in the job workspace with exactly five top-level fields:
+`decisions`, `analyses`, `overview`, `outlook` and `coverage_notes`. The generated `TASK.md`
 is the versioned contract. Its structure is:
 
 ```json
@@ -193,12 +193,29 @@ is the versioned contract. Its structure is:
       "question": [],
       "methods": [],
       "findings": []
+    },
+    "perspective": {
+      "design_logic": [{"text": "How the problem motivates the design", "evidence": "Exact contiguous source excerpt", "kind": "inferred"}],
+      "limitations": [{"text": "A specific data or validation boundary", "evidence": "Exact contiguous source excerpt", "kind": "reported"}],
+      "inspiration": [{"text": "A transferable insight to investigate", "evidence": "Exact contiguous source excerpt", "kind": "inferred"}]
     }
   }],
   "overview": {"paragraphs": [{"sentences": [{
     "text": "A bounded synthesis claim",
     "citations": [{"ref": 1, "evidence": "Exact contiguous source excerpt"}]
   }]}]},
+  "outlook": {
+    "synthesis": {"paragraphs": [{"sentences": [{"text": "What the papers establish together", "citations": [{"ref": 1, "evidence": "Exact contiguous source excerpt"}]}]}]},
+    "open_questions": [{"text": "A concrete unresolved question motivated by these findings", "citations": [{"ref": 1, "evidence": "Exact contiguous source excerpt"}]}],
+    "ideas": [{
+      "status": "proposed", "title": "A specific research direction",
+      "basis": [{"text": "The source finding motivating this proposal", "citations": [{"ref": 1, "evidence": "Exact contiguous source excerpt"}]}],
+      "hypothesis": "A testable question or hypothesis",
+      "experiment": "Data, baseline, intervention and ablation",
+      "validation": "Metrics, held-out tests and what would refute the hypothesis",
+      "expected_value": "What a positive or negative result would help decide"
+    }]
+  },
   "coverage_notes": "Describe actual searches, coverage limits and unavailable evidence."
 }
 ```
@@ -211,13 +228,34 @@ anchor. Per-topic caps, preprint settings, configured topic exclusions and
 previously sent identities remain enforced.
 
 Give each included paper exactly one analysis, in the desired reference order.
-Each of the four fields holds at most three `{text, evidence}` claims; leave
-unsupported fields empty. Every included paper needs at least one supported claim.
+Each of the four internal fields holds at most three `{text, evidence}` claims.
+New schema-2 tasks require nonempty `question` and `methods`, and at least one
+`findings` or `highlights` claim. Each `perspective` field requires one to three
+`{text, evidence, kind}` statements. Use `reported` for an author-stated point and
+`inferred` for the agent's interpretation; never invent an author's motivation.
+The renderer combines these into exactly six reader-facing sections: **Problem
+and design → Scientific question → Method chain → Results and highlights →
+Limitations → Research implications**. Do not repeat the same result in both
+internal result lists. Exclude a paper if its evidence cannot support a substantive
+review rather than filling missing sections with generic text.
 Evidence anchors are 12–180 contiguous source characters. Write claims in the
 configured language without calling an abstract full text. Overview references
 are one-based in analysis order, and every overview sentence needs citations.
-For no qualifying papers use `analyses: []` and `overview: {"paragraphs": []}`;
-still supply all exclusion decisions and honest coverage notes.
+The closing `outlook` follows the reviews and precedes the global bibliography.
+It contains a cited synthesis (at least two distinct papers for a multi-paper
+issue), one to four grounded open questions, and one to four explicitly proposed
+ideas. Aim for two to four useful ideas when the evidence supports them; one is
+enough for a narrow issue. Each idea has one to three cited basis statements and
+all four proposal fields. The agent must supply a feasible comparison, validation
+criteria and a possible falsifying result, not promise improvements or claim
+global novelty. [Full editorial contract](research-outlook.md) ·
+[中文说明](research-outlook_中文.md).
+
+For no qualifying papers use `analyses: []`, `overview: {"paragraphs": []}` and
+`outlook: {"synthesis": {"paragraphs": []}, "open_questions": [], "ideas": []}`;
+still supply all exclusion decisions and honest coverage notes. Previously frozen
+schema-1 jobs can retain their original four-field result and earlier paper
+structure; upgrading does not rewrite a saved or sent envelope.
 
 ```sh
 bash scripts/run.sh --config config.json agent-tool JOB_ID validate --input RESULT_PATH
@@ -288,6 +326,10 @@ neither an agent worker nor a scheduler.
   `fetch`。随后用 `ingest` 导入本任务未修改的来源快照，不能导入手写元数据或伪造证据。
 - 每个配置主题至少要导入一次成功来源操作，所有候选都要给出纳入／排除决定。分析与综述
   必须引用匹配的证据片段；校验可确认追溯性，不能保证语义正确或检索穷尽。
+- 新任务逐篇固定为「问题与设计、科学问题、方法链、结果与亮点、局限性、有何启发」六段。
+  Agent 分别写明作者陈述与分析推论；程序核验来源并排版，不代替 Agent 写科研解读。
+  正文最后、参考文献之前还有「本期总结与研究启发」：跨论文综合、具体开放问题以及
+  含假设、实验、验证／反证和预期价值的研究设想。详见[完整说明](research-outlook_中文.md)。
 - 用 `validate` 检查并修正，再用 `finalize` 完成、保存文献与准备指定的输出；它不发邮件。
   必须检查持久任务状态为 completed，不能只凭 Agent 在聊天中声称完成。
 - 完成 dry-run 并检查后，可用 `run --send` 或 `run --prepare-connector` 安全转为投递：

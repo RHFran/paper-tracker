@@ -517,3 +517,5 @@ CI 配置执行离线测试和 CLI/安装冒烟检查，外部服务使用模拟
 具体本地检查范围见 [VALIDATION.md](../VALIDATION.md)。
 
 代码采用 [MIT 许可证](../LICENSE)，版本变化见 [CHANGELOG.md](../CHANGELOG.md)。
+
+[主要原图](original-figures.md#中文) · [六段精读与结尾研究展望](research-outlook_中文.md)。

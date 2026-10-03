@@ -13,7 +13,7 @@
       overviewEyebrow:'01 / 研究概览',fixedFixture:'固定合成样本',overviewTitle:'把单篇发现，放回研究语境。',overviewScope:'2 篇合成样本 · 2 个主题',overviewDate:'固定示例日期：2026-10-03',papersTitle:'逐篇阅读',referencesTitle:'引用与证据',auditLink:'查看完整 JSON ↗',referencesNotice:'编号在整份简报中保持一致。以下记录均为本地合成样本，不对应真实发表论文。',
       previewOnly:'仅界面预览',configTitle:'你的阅读偏好',configDescription:'试着切换主题与语言，看看简报的阅读方式。',topicLabel:'关注主题',allTopics:'全部示例主题',scheduleLabel:'投递频率示意',daily:'每天',weekdays:'每个工作日',weekly:'每周一',timeLabel:'时间示意',timezoneLabel:'时区示意',languageLabel:'输出语言',configDisclaimer:'以上操作仅改变演示，不会创建订阅或定时任务。实际使用需有运行环境、检索权限和研究 Agent（或独立 API）。邮件可选 SMTP 或获授权的连接工具交接；连接工具的定时流程需宿主安排。',setupGuide:'查看部署说明',readingNoteLabel:'一个小原则',readingNote:'好的科研简报，不只告诉你发现了什么，也告诉你证据止于何处。',
       ctaTitle:'让下一次阅读，从好问题开始。',ctaText:'把仓库交给你的编程 Agent 协助部署，或按文档手动配置。源码与证据结构都保持开放。',viewSource:'查看 GitHub 源码',footerTagline:'少一点噪声，多一点理解。',security:'安全说明',feedback:'反馈',
-      highlights:'核心亮点',question:'科学问题',methods:'实验或模型方法',findings:'主要结果',evidenceToggle:'展开结论与原文证据',evidenceNotice:'以下原文同样来自合成样本，并非真实论文。',evidenceLabel:'合成原文',referenceLabel:'引用编号',count:'篇合成示例',schedulePreview:'预览：',notScheduled:'（未启用）',missingTime:'请选择时间',exportNotice:'导入演示文献：',exportRis:'下载 RIS',exportBib:'下载 BibTeX'
+      highlights:'亮点依据',design_logic:'问题与设计',question:'科学问题',methods:'方法链',findings:'结果与亮点',limitations:'局限性',inspiration:'有何启发',reported:'作者说明',inferred:'分析推论',outlookTitle:'本期总结与研究启发',outlookScope:'整期合成示例 · 待检验研究设想',openQuestions:'仍待解决的问题',researchIdeas:'值得验证的研究设想',basis:'论文依据',hypothesis:'可检验假设',experiment:'实验设计',validation:'验证与反证',expected_value:'预期价值',evidenceToggle:'展开结论与原文证据',evidenceNotice:'以下原文同样来自合成样本，并非真实论文。',evidenceLabel:'合成原文',referenceLabel:'引用编号',count:'篇合成示例',schedulePreview:'预览：',notScheduled:'（未启用）',missingTime:'请选择时间',exportNotice:'导入演示文献：',exportRis:'下载 RIS',exportBib:'下载 BibTeX'
     },
     en: {
       costNotice:'Recommended with Codex dot: the agent leads research using the program’s tools and records. Codex / Claude Code agents and a standalone API are also supported. Real tasks consume account usage; this demo calls no model.',skip:'Skip to the digest',brandCaption:'Your open research brief',eyebrow:'OPEN SOURCE · STAY CURIOUS',
@@ -26,7 +26,7 @@
       overviewEyebrow:'01 / RESEARCH CONTEXT',fixedFixture:'Fixed synthetic samples',overviewTitle:'Put individual findings in context.',overviewScope:'2 synthetic papers · 2 topics',overviewDate:'Fixed sample date: 2026-10-03',papersTitle:'A closer look',referencesTitle:'References & evidence',auditLink:'Full evidence JSON ↗',referencesNotice:'Reference numbers stay consistent throughout the brief. These locally authored synthetic records do not correspond to published papers.',
       previewOnly:'Preview only',configTitle:'Your reading preferences',configDescription:'Explore topics and languages to see how a brief reads.',topicLabel:'Research topic',allTopics:'All demo topics',scheduleLabel:'Illustrative frequency',daily:'Every day',weekdays:'Every weekday',weekly:'Every Monday',timeLabel:'Example time',timezoneLabel:'Example timezone',languageLabel:'Output language',configDisclaimer:'These controls change only this demo, with no subscription or scheduled task. Real use needs a running host, retrieval permissions and a research agent (or standalone API). Choose SMTP or an authorized email-tool handoff; a host must schedule connector workflows.',setupGuide:'Read the setup guide',readingNoteLabel:'A SMALL PRINCIPLE',readingNote:'A useful research brief shows not just what was found, but where the evidence ends.',
       ctaTitle:'Start your next reading session with a better question.',ctaText:'Give the repository to your coding agent for setup help, or configure it manually. The source and evidence structure stay open.',viewSource:'Explore the GitHub project',footerTagline:'Less noise. More understanding.',security:'Security',feedback:'Feedback',
-      highlights:'Core highlights',question:'Scientific question',methods:'Experimental or model methods',findings:'Main results',evidenceToggle:'Expand claims and source evidence',evidenceNotice:'These source passages are also synthetic, not excerpts from real papers.',evidenceLabel:'SYNTHETIC SOURCE',referenceLabel:'Reference',count:'synthetic papers',schedulePreview:'Preview: ',notScheduled:'(not enabled)',missingTime:'Choose a time',exportNotice:'Import the demo records:',exportRis:'Download RIS',exportBib:'Download BibTeX'
+      highlights:'Highlight evidence',design_logic:'Problem and design',question:'Scientific question',methods:'Method chain',findings:'Results and highlights',limitations:'Limitations',inspiration:'Research implications',reported:'Author-reported',inferred:'Interpretation',outlookTitle:'Closing synthesis and research outlook',outlookScope:'Full synthetic issue · Research proposals to test',openQuestions:'Open questions',researchIdeas:'Research ideas to test',basis:'Evidence basis',hypothesis:'Testable hypothesis',experiment:'Experiment design',validation:'Validation and falsification',expected_value:'Expected value',evidenceToggle:'Expand claims and source evidence',evidenceNotice:'These source passages are also synthetic, not excerpts from real papers.',evidenceLabel:'SYNTHETIC SOURCE',referenceLabel:'Reference',count:'synthetic papers',schedulePreview:'Preview: ',notScheduled:'(not enabled)',missingTime:'Choose a time',exportNotice:'Import the demo records:',exportRis:'Download RIS',exportBib:'Download BibTeX'
     }
   };
   const byId = id => document.getElementById(id);
@@ -79,17 +79,24 @@
       const meta = element('p', 'paper-meta');
       meta.append(element('span', 'synthetic-badge', t.sample), document.createTextNode(`${paper.authors.join(' · ')} · ${paper.publication_date}`));
       card.append(meta);
-      for (const key of ['highlights', 'question', 'methods', 'findings']) {
+      const fields = paper.analysis.fields;
+      const perspective = paper.analysis.perspective;
+      const sections = [
+        ['design_logic', perspective.design_logic], ['question', fields.question],
+        ['methods', fields.methods], ['findings', [...fields.findings, ...fields.highlights]],
+        ['limitations', perspective.limitations], ['inspiration', perspective.inspiration]
+      ];
+      for (const [key, items] of sections) {
         const section = element('div', 'paper-section');
         section.append(element('h4', '', t[key]));
         const statements = element('ul');
-        for (const item of paper.analysis.fields[key]) statements.append(element('li', '', item.text));
+        for (const item of items) statements.append(element('li', '', (item.kind ? `${t[item.kind]}: ` : '') + item.text));
         section.append(statements);
         card.append(section);
       }
       const details = element('details', 'evidence-details');
       details.append(element('summary', '', t.evidenceToggle), element('p', 'muted', t.evidenceNotice));
-      for (const [key, items] of Object.entries(paper.analysis.fields)) {
+      for (const [key, items] of sections) {
         for (const item of items) {
           const evidence = element('div', 'evidence-item');
           evidence.append(element('span', 'evidence-label', t[key]), element('p', '', item.text), element('span', 'evidence-label', t.evidenceLabel), element('p', 'evidence-quote', item.evidence));
@@ -108,6 +115,39 @@
       item.append(element('span', 'reference-title', paper.title), document.createTextNode(`${paper.journal}. ${paper.publication_date}. ${paper.kind}.`));
       refs.append(item);
     });
+  }
+  function renderOutlook() {
+    const t = translations[language];
+    const outlook = window.PAPER_TRACKER_DEMO[language].outlook;
+    const target = byId('outlook-content');
+    target.replaceChildren();
+    function cited(statements) {
+      const paragraph = element('p');
+      for (const statement of statements) {
+        paragraph.append(document.createTextNode(statement.text));
+        for (const citation of statement.citations) {
+          const link = element('a', 'citation', `[${citation.ref}]`);
+          link.href = `#reference-${citation.ref}`;
+          link.title = citation.evidence;
+          link.setAttribute('aria-label', `${t.referenceLabel} ${citation.ref}`);
+          paragraph.append(link);
+        }
+        paragraph.append(document.createTextNode(' '));
+      }
+      return paragraph;
+    }
+    for (const paragraph of outlook.synthesis.paragraphs) target.append(cited(paragraph.sentences));
+    target.append(element('h4', '', t.openQuestions));
+    for (const question of outlook.open_questions) target.append(cited([question]));
+    target.append(element('h4', '', t.researchIdeas));
+    for (const idea of outlook.ideas) {
+      const section = element('div', 'paper-section');
+      section.append(element('h4', '', idea.title), element('strong', '', t.basis), cited(idea.basis));
+      for (const key of ['hypothesis', 'experiment', 'validation', 'expected_value']) {
+        section.append(element('strong', '', t[key]), element('p', '', idea[key]));
+      }
+      target.append(section);
+    }
   }
   function renderSchedule() {
     const t = translations[language];
@@ -131,6 +171,7 @@
     byId('bib-link').href = `preview/demo.${language}.bib`;
     renderOverview();
     renderPapers();
+    renderOutlook();
     renderSchedule();
   }
   for (const button of document.querySelectorAll('[data-language]')) button.addEventListener('click', () => setLanguage(button.dataset.language));

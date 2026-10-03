@@ -320,7 +320,7 @@ def safe_figure_url(value):
         if host in {"localhost", "localhost.localdomain", "metadata.google.internal"} or host.endswith((".localhost", ".local", ".internal", ".lan", ".home", ".test", ".invalid")):
             return ""
         try:
-            if not ipaddress.ip_address(host).is_global:
+            if not ipaddress.ip_address(host).is_global or ipaddress.ip_address(host).is_multicast:
                 return ""
         except ValueError:
             # Reject alternate numeric IPv4 encodings (e.g. 127.1 or 0x7f.0.0.1).

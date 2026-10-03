@@ -14,6 +14,8 @@ from pathlib import Path
 
 from .analysis import is_chinese, output_language, reference_map, validate_analysis, validate_overview
 from .models import Paper
+from .outlook import prepare_outlook
+from .perspective import validate_perspective
 from .render import render
 from .references import reference_files, reference_manifest
 
@@ -85,6 +87,20 @@ def _papers(language):
         evidence += "\n".join(item[2] for items in fixture["claims"].values() for item in items)
         fields = {key: [{"text": item[1 if zh else 0], "evidence": item[2]} for item in items]
                   for key, items in fixture["claims"].items()}
+        limitation = fields["methods"].pop()
+        design = (("把树种和干旱程度交叉比较，可检验总体均值是否掩盖不同树种的相反响应。" if zh else
+                   "Crossing species with drought intensity tests whether an overall mean conceals different response directions.")
+                  if fixture["id"] == "forest-bvoc" else
+                  ("光谱反映季节差异，高度补充结构信息；空间分离的留出林分用于检验融合是否超出训练地点的记忆。" if zh else
+                   "Seasonal spectra and canopy height provide complementary inputs; separate stands test beyond training-location memorization."))
+        inspiration = (("可在成熟林分中按树种重复干旱梯度比较，检验幼树响应能否迁移到冠层尺度。" if zh else
+                        "Repeat species-stratified drought comparisons in mature stands to test whether sapling responses transfer to canopy scale.")
+                       if fixture["id"] == "forest-bvoc" else
+                       ("可将季节数、结构特征与地点留出分别消融，判断融合收益来自哪一种信息。" if zh else
+                        "Ablate season count, structural features and site holdouts separately to identify which information supports transfer."))
+        perspective = {"design_logic":[{"text":design,"evidence":fields["highlights"][0]["evidence"],"kind":"inferred"}],
+                       "limitations":[{**limitation,"kind":"reported"}],
+                       "inspiration":[{"text":inspiration,"evidence":limitation["evidence"],"kind":"inferred"}]}
         paper = Paper(
             title="[DEMO / SYNTHETIC" + (" 合成示例] " if zh else "] ") + fixture["title"][1 if zh else 0],
             source_id=fixture["id"], source="demo",
@@ -106,6 +122,7 @@ def _papers(language):
         )
         paper.analysis = {"mode": "synthetic_demo", "synthetic": True, "language": language,
                           "fields": validate_analysis(fields, evidence, language),
+                          "perspective": validate_perspective(perspective, evidence, language),
                           "notice": "合成示例分析；未调用模型；逐条锚点可在示例源文中核对。" if zh else
                                     "Synthetic example analysis; no model called; anchors refer only to the fixture source."}
         papers.append(paper)
@@ -130,12 +147,32 @@ def _overview(papers, language):
          "citations": [citation(2, "findings")]},
         {"text": "两项示例的适用范围分别受限于受控幼树实验和单地点分类比较，尚不能据此推断成熟森林或跨地点的表现。" if zh else
                  "The examples remain bounded by a controlled sapling experiment and a single-site classification comparison, leaving mature-forest responses and cross-site performance unresolved.",
-         "citations": [citation(1, "methods", 2), citation(2, "methods", 2)]},
+         "citations": [{"ref":i,"evidence":papers[i-1].analysis["perspective"]["limitations"][0]["evidence"]} for i in (1,2)]},
     ]
     return {"mode": "synthetic_demo", "synthetic": True, "language": language,
             "paragraphs": validate_overview({"paragraphs": [{"sentences": sentences}]}, papers, language),
             "references": reference_map(papers), "warnings": [],
             "notice": "DEMO / synthetic, hand-authored offline introduction; no model or real literature used."}
+
+
+def _outlook(papers, language):
+    """Hand-authored synthetic fixture, never a fallback for actual research."""
+    zh = is_chinese(language)
+    citations = [{"ref":i,"evidence":papers[i-1].analysis["perspective"]["limitations"][0]["evidence"]} for i in (1,2)]
+    statement = {"text":("两项合成研究分别展示受控幼树实验与单地点分类结果；共同的待检验边界是结论能否迁移到成熟森林及其他地点。" if zh else
+                          "The synthetic examples cover controlled saplings and single-site classification; transfer to mature forests and other sites remains untested."),
+                 "citations":citations}
+    question = {"text":("在独立成熟林分中，树种分层能否同时改善排放估计与遥感制图误差的解释？" if zh else
+                         "In independent mature stands, could species stratification improve interpretation of both emissions and mapping errors?"),
+                "citations":citations}
+    idea = {"status":"proposed","title":"合成设想：树种分层的跨地点验证" if zh else "Synthetic proposal: cross-site, species-stratified validation",
+            "basis":[statement],
+            "hypothesis":"按树种和地点分层可能更好揭示排放响应与制图误差的异质性。" if zh else "Species and site stratification could reveal heterogeneity in emission responses and mapping errors.",
+            "experiment":"这是虚构研究计划示例：在独立成熟林分收集树种、冠层观测与重复排放数据，比较合并分析和分层分析，保持相同样本量；分别去掉季节光谱或高度特征做消融。" if zh else "This is a fictional study plan: collect species labels, canopy observations and repeated emission measurements in independent mature stands; compare pooled and stratified analyses at equal sample size, ablating seasonal spectra and height separately.",
+            "validation":"按地点留出，分别报告排放预测误差、制图宏平均F1和树种置信区间；若分层收益在新地点消失，就不能支持迁移假设。" if zh else "Hold out sites; report emission prediction error, mapping macro-F1 and species-level intervals. Gains that disappear at new sites would not support transfer.",
+            "expected_value":"如果验证成立，可帮助设计更有针对性的观测；如果不成立，则明确幼树实验与单地点制图不宜直接用于新森林。此处不表示已有真实研究结果。" if zh else "A positive test could guide targeted observations; a negative test would bound transfer from sapling experiments and single-site mapping. No real result is claimed in this fixture."}
+    return prepare_outlook({"synthesis":{"paragraphs":[{"sentences":[statement]}]},
+                            "open_questions":[question],"ideas":[idea]},papers,language)
 
 
 def _atomic_write(path, content):
@@ -190,10 +227,11 @@ def preview(config, language=None):
             "sources": [], "errors": [], "failure": False}
     papers = _papers(selected)
     overview = _overview(papers, selected)
+    outlook = _outlook(papers, selected)
     references = reference_files(papers, "demo." + selected)
     meta["reference_exports"] = reference_manifest(references)
-    text, html = render(papers, meta, options, overview)
-    audit = {"meta": meta, "overview": overview,
+    text, html = render(papers, meta, options, overview, outlook)
+    audit = {"meta": meta, "overview": overview, "outlook":outlook,
              "papers": [paper.export(include_text=True) for paper in papers], "excluded": []}
     output = Path(config.get("output_dir", "output"))
     output.mkdir(parents=True, exist_ok=True)

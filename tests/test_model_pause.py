@@ -80,13 +80,13 @@ class ModelRetryPause(unittest.TestCase):
         self.model = ReviewModel()
         result = _run_one(self.config, "run", False, self.now + timedelta(minutes=1))
         self.assertEqual(result["status"], "dry_run")
-        self.assertEqual(len(self.model.calls), 2)
+        self.assertEqual(len(self.model.calls), 3)
         self.assertIsNone(self.read_pause())
         sent = _run_one(self.config, "tick", True, self.now + timedelta(minutes=2))
         repeat = _run_one(self.config, "tick", True, self.now + timedelta(minutes=3))
         self.assertEqual(sent["status"], "sent")
         self.assertEqual(repeat["status"], "already_sent")
-        self.assertEqual(len(self.model.calls), 4)
+        self.assertEqual(len(self.model.calls), 6)
 
     def test_next_local_day_allows_one_new_attempt(self):
         self.config["timezone"] = "Asia/Shanghai"
@@ -95,7 +95,7 @@ class ModelRetryPause(unittest.TestCase):
         self.model = ReviewModel()
         result = _run_one(self.config, "tick", True, datetime(2026, 10, 6, 1, tzinfo=timezone.utc))
         self.assertEqual(result["status"], "sent")
-        self.assertEqual(len(self.model.calls), 2)
+        self.assertEqual(len(self.model.calls), 3)
 
     def test_other_profile_is_not_paused(self):
         self.fail_once()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import os
 import smtplib
 import ssl
@@ -9,6 +10,8 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from .analysis import require_llm, require_analysis_payload
 from .config import valid_email
+from .connector_delivery import validate_inline_references
+from .figures import validate_inline_images
 from .references import validate_reference_files
 
 
@@ -45,10 +48,13 @@ def send_smtp(payload, config, state, digest_id, smtp_ssl=smtplib.SMTP_SSL, smtp
     local_today = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(config["timezone"])).date().isoformat()
     if payload["harvest_until"] != local_today:
         raise MailSetupError("待发送日报不是今天生成的，已拒绝过期原稿；请 run --send 重新生成当前窗口日报")
-    if state.payload_has_sent_aliases(payload):
+    from .agent_jobs import validate_revision_delivery
+    if state.payload_has_sent_aliases(payload) and not validate_revision_delivery(state, payload):
         raise MailSetupError("这份待发送日报包含已在其他日报发送的论文，拒绝重复发送；请重新生成当前日报")
     try:
         references = validate_reference_files(payload.get("reference_files", []))
+        images = validate_inline_images(payload.get("inline_images", []))
+        validate_inline_references(images, payload["html"])
     except ValueError as exc:
         raise MailSetupError(str(exc)) from None
     values = smtp_settings(config)
@@ -59,6 +65,13 @@ def send_smtp(payload, config, state, digest_id, smtp_ssl=smtplib.SMTP_SSL, smtp
     message["Message-ID"] = f"<{digest_id}@literature-digest.local>"
     message.set_content(payload["text"])
     message.add_alternative(payload["html"], subtype="html")
+    html_part = message.get_payload()[-1]
+    for item in images:
+        maintype, subtype = item["content_type"].split("/", 1)
+        html_part.add_related(base64.b64decode(item["content_base64"], validate=True),
+                              maintype=maintype, subtype=subtype,
+                              cid="<" + item["content_id"] + ">", filename=item["filename"],
+                              disposition="inline")
     for item in references:
         maintype, subtype = item["content_type"].split("/", 1)
         message.add_attachment(item["content"].encode("utf-8"), maintype=maintype, subtype=subtype,

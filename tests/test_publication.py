@@ -19,7 +19,7 @@ class PublicationTest(unittest.TestCase):
         self.assertEqual(project["scripts"]["paper-tracker"], "literature_digest.cli:main")
         self.assertEqual(project["scripts"]["literature-digest"], project["scripts"]["paper-tracker"])
         # Only native Windows needs the IANA timezone database package.
-        self.assertEqual(project["dependencies"], ["tzdata>=2024.1; sys_platform == 'win32'"])
+        self.assertEqual(project["dependencies"], ["Pillow>=11.0", "tzdata>=2024.1; sys_platform == 'win32'"])
 
     def test_bilingual_readmes_link_to_reproducible_examples(self):
         for filename, guide, setup in (("README.md", "user-guide.md", "platform-setup.md"),

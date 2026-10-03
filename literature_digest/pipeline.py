@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .analysis import (ANALYSIS_POLICY, ModelAnalysisError, analyze, compose_overview,
+from .analysis import (ANALYSIS_POLICY, ModelAnalysisError, analyze, compose_overview, compose_outlook,
                        require_analysis_payload, require_llm, screen_candidates)
 from .http import HttpClient, RetrievalError
 from .mail import send_smtp
@@ -277,20 +277,28 @@ def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=sen
             overview = compose_overview(selected, config, http)
             if selected and overview.get("mode") != "llm_grounded":
                 model_failed("Required overview synthesis failed validation. No digest was delivered; check model access.")
+            outlook = compose_outlook(selected, config, http)
+            if selected and outlook.get("mode") != "llm_grounded":
+                if outlook.get("reason") == "evidence_budget_exceeded":
+                    model_failed("Required closing research outlook exceeds its evidence budget; reduce max_papers_per_track "
+                                 "or increase llm.max_overview_chars (default: llm.max_evidence_chars). "
+                                 "No closing model call or delivery was made; earlier model stages consumed usage.")
+                model_failed("Required closing research outlook failed validation. No digest was delivered; check model access and evidence budget.")
             state.clear_model_failure()
             meta["analysis_policy"] = ANALYSIS_POLICY
             meta["insufficient_evidence"] = sum(item["reason"] == "Insufficient source evidence for required LLM analysis" for item in excluded)
             suffix = "" if send or prepare_connector else "_preview"
             references = reference_files(selected, local_day.isoformat() + "_" + id_ + suffix)
             meta["reference_exports"] = reference_manifest(references)
-            text, html = render(selected, meta, config, overview)
-            audit = {"meta": meta, "overview": overview, "papers": [p.export() for p in selected], "excluded": excluded}
+            text, html = render(selected, meta, config, overview, outlook=outlook)
+            audit = {"meta": meta, "overview": overview, "outlook": outlook,
+                     "papers": [p.export() for p in selected], "excluded": excluded}
             paths = {} if prepare_connector else write_outputs(config, id_, text, html, audit, suffix, references)
             if not send and not prepare_connector:
                 _save_library(config, state, selected, id_, paths)
                 return {"status": "dry_run", "digest_id": id_, "paper_count": len(selected), "paths": paths}
             # Local reports use sibling downloads; mail uses real MIME attachments.
-            text, html = render(selected, {**meta, "reference_delivery": "attachments"}, config, overview)
+            text, html = render(selected, {**meta, "reference_delivery": "attachments"}, config, overview, outlook=outlook)
             payload = {"analysis_policy": ANALYSIS_POLICY, "reference_files": references, "recipient": config["recipient"], "profile_id": config.get("profile_id", "default"), "config_fingerprint": config_fingerprint(config), "subject": f"{'科研文献精选' if config.get('language', 'zh').startswith('zh') else 'Literature digest'} | {local_day.isoformat()} | {len(selected)}", "text": text, "html": html, "aliases": sorted({a for p in selected for a in p.aliases}), "harvest_until": local_day.isoformat(), "paths": paths}
             if prepare_connector:
                 from .connector_delivery import prepare_payload

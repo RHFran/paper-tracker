@@ -597,3 +597,5 @@ real model response, live deployment or an installed scheduler was tested. See
 [VALIDATION.md](../VALIDATION.md) for the recorded verification scope.
 
 [MIT license](../LICENSE). Release history: [CHANGELOG.md](../CHANGELOG.md).
+
+[Main original figures](original-figures.md) · [Six-section reading and closing research outlook](research-outlook.md).

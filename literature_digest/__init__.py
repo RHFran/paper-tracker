@@ -1,2 +1,2 @@
-"""Super Paper radar: configurable source-grounded literature email digests. Python 3.11+, standard-library core; Windows timezone data uses tzdata."""
-__version__ = "3.0.0"
+"""Super Paper radar: configurable source-grounded literature email digests. Python 3.11+, standard-library orchestration with Pillow raster validation; Windows timezone data uses tzdata."""
+__version__ = "3.1.0"

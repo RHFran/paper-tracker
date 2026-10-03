@@ -39,7 +39,7 @@ def initialize(args, input_fn=input):
     zone = answer(args.timezone, "IANA timezone", "Asia/Shanghai")
     at = answer(args.at, "Daily send time HH:MM", "08:30")
     topics = [{"id": f"topic-{i}", "name": topic, "queries": [topic], "include_any": [], "include_all": [], "exclude_any": []} for i, topic in enumerate(directions, 1)]
-    config = {"recipient": recipient, "language": language, "timezone": zone, "topics": topics, "schedule": {"time": at, "weekdays": list(range(7)), "catch_up": True}, "workflow": {"mode": "agent"}, "agent": {"backend": getattr(args, "agent_backend", "codex")}, "images": {"mode": "off", "max_per_paper": 3}, "llm": {"enabled": False, "plan_queries": True, "screen_candidates": True}, "mail": {"enabled": False}}
+    config = {"recipient": recipient, "language": language, "timezone": zone, "topics": topics, "schedule": {"time": at, "weekdays": list(range(7)), "catch_up": True}, "workflow": {"mode": "agent"}, "agent": {"backend": getattr(args, "agent_backend", "codex")}, "images": {"mode": "embed", "max_per_paper": 2}, "llm": {"enabled": False, "plan_queries": True, "screen_candidates": True}, "mail": {"enabled": False}}
     checked = copy.deepcopy(DEFAULTS)
     for key, value in config.items():
         if isinstance(value, dict):
@@ -140,9 +140,13 @@ def _main(argv=None):
     recover.add_argument("--agent-stopped", action="store_true")
     export = sub.add_parser("agent-export", help="Export a durable research task for an existing host agent; no model/research/mail calls")
     export.add_argument("--prepare-connector", action="store_true")
+    revise = sub.add_parser("agent-revise", help="Explicitly create a revised edition of a confirmed sent agent digest; never modifies sent history")
+    revise.add_argument("job_id")
+    revise.add_argument("--reason", required=True)
+    revise.add_argument("--prepare-connector", action="store_true")
     agent_tool = sub.add_parser("agent-tool", help="Source, evidence, validation, literature and outbox tools called by the research agent")
     agent_tool.add_argument("job_id")
-    agent_tool.add_argument("action", choices=["status", "search", "fetch", "ingest", "validate", "finalize", "library"])
+    agent_tool.add_argument("action", choices=["status", "search", "fetch", "ingest", "figure", "validate", "finalize", "library"])
     agent_tool.add_argument("--source", choices=["crossref", "europepmc", "arxiv"])
     agent_tool.add_argument("--topic", dest="topic_id")
     agent_tool.add_argument("--query")
@@ -182,15 +186,18 @@ def _main(argv=None):
             from .configure_model import configure_model
             return _report(configure_model(args))
         configs = _select(load_configs(args.config), args.profile)
-        if args.command in ("agent-export", "agent-tool", "agent-recover"):
+        if args.command in ("agent-export", "agent-revise", "agent-tool", "agent-recover"):
             if len(configs) != 1:
                 raise ValueError("Select exactly one profile with --profile for agent commands")
             from .agent_jobs import create_job, tool, recover_job
+            if args.command == "agent-revise":
+                return _report(create_job(configs[0], delivery="connector" if args.prepare_connector else "dry_run",
+                                          revision_of=args.job_id, revision_reason=args.reason))
             if args.command == "agent-recover":
                 return _report(recover_job(configs[0], args.job_id, args.agent_stopped))
             if args.command == "agent-export":
                 return _report(create_job(configs[0], delivery="connector" if args.prepare_connector else "dry_run"))
-            if args.action in ("ingest", "validate", "finalize") and not args.input_path:
+            if args.action in ("ingest", "figure", "validate", "finalize") and not args.input_path:
                 raise ValueError("This agent action requires --input")
             return _report(tool(configs[0], args.job_id, args.action, source=args.source,
                                 topic_id=args.topic_id, query=args.query, url=args.url, input_path=args.input_path))

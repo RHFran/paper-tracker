@@ -72,7 +72,7 @@
   "include_preprints": true,
   "max_papers_per_track": 10,
   "images": {
-    "mode": "off",
+    "mode": "embed",
     "max_per_paper": 3
   },
   "figure_catalog": {},

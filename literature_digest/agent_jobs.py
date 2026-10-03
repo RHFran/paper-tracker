@@ -22,15 +22,19 @@ from .analysis import (ANALYSIS_POLICY, FIELDS, _check_anchor, reference_map,
                        validate_analysis, validate_overview)
 from .connector_delivery import read_json, _object, _text
 from .models import Paper, TRACKS
+from .outlook import prepare_outlook
+from .perspective import validate_perspective
 from .pipeline import (atomic_write, config_fingerprint, digest_id, _save_library,
                        verified_online_date, write_outputs)
 from .references import reference_files, reference_manifest
 from .relevance import merge_papers, screening_tracks
 from .render import render
 from .state import State, state_scope
+from .figures import register_figure, validate_inline_images
+from .sources import attach_figures
 from zoneinfo import ZoneInfo
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MAX_CANDIDATES = 2000
 
 
@@ -72,6 +76,10 @@ def _schema(state):
         CREATE TABLE IF NOT EXISTS agent_candidates_v1 (
             scope TEXT NOT NULL, job_id TEXT NOT NULL, paper_key TEXT NOT NULL,
             data TEXT NOT NULL, PRIMARY KEY(scope,job_id,paper_key));
+        CREATE TABLE IF NOT EXISTS agent_figures_v1 (
+            scope TEXT NOT NULL, job_id TEXT NOT NULL, paper_key TEXT NOT NULL,
+            figure_id TEXT NOT NULL, data TEXT NOT NULL, asset TEXT,
+            PRIMARY KEY(scope,job_id,paper_key,figure_id));
     """)
 
 
@@ -141,6 +149,10 @@ Append:
   for a lead you independently discovered (supported DOI/arXiv/PMC URL families).
 - ingest --input SNAPSHOT_PATH: import the exact registered snapshot returned by
   search/fetch. Hand-written metadata, edited snapshots and other jobs are rejected.
+- figure --input FIGURE_JSON: choose an original figure for an ingested paper,
+  with exact figure number/caption, explanation in contract.language, source/image
+  URLs, attribution and paper-specific license evidence. See docs/original-figures.md.
+  Program checks source/licensing anchors and raster bytes, then freezes CID assets.
 - validate --input RESULT_JSON: check your decisions/analysis without committing.
 - finalize --input RESULT_JSON: revalidate, save literature, render the report and
   prepare the requested outbox. This tool never sends mail.
@@ -155,6 +167,18 @@ Program validation checks identifiers, online dates/window, duplicates, configur
 exclusions, evidence quotations and reference numbering. It cannot prove semantic
 entailment, exhaustive coverage or that your conclusions are correct.
 
+## Original figures
+
+Respect contract.images.mode=off. Otherwise choose the MAIN scientific figures,
+usually a method/framework and/or key quantitative result, never a logo or an
+arbitrary first image. Read the figure and its caption before selection. Use the
+figure tool for useful Chinese/configured-language interpretation, exact number,
+source, attribution and paper-specific license evidence. Never use arXiv metadata
+CC0 as figure permission or generated artwork as original. If reuse is unclear or
+retrieval fails, register the source link with an honest omission_reason instead.
+Keep detailed rights evidence private in the audit. CID assets are frozen during
+finalization, never modify or replace a prepared or sent message.
+
 ## RESULT_JSON (UTF-8)
 
 Exactly these fields:
@@ -162,19 +186,86 @@ Exactly these fields:
 "topic_ids":["configured topic ID"], "reason":"relevance decision",
 "evidence":"12–180 contiguous source characters, or empty for exclusion"}}],
 "analyses":[{{"key":"each included key, in intended reference order",
-"fields":{{"highlights":[],"question":[],"methods":[],"findings":[]}}}}],
+"fields":{{"highlights":[],"question":[],"methods":[],"findings":[]}},
+"perspective":{{"design_logic":[{{"text":"how the problem motivates the design",
+"evidence":"exact source excerpt","kind":"inferred"}}],
+"limitations":[{{"text":"specific data, method or validation boundary",
+"evidence":"exact source excerpt","kind":"reported"}}],
+"inspiration":[{{"text":"a transferable insight or next research direction",
+"evidence":"exact source excerpt","kind":"inferred"}}]}}}}],
 "overview":{{"paragraphs":[{{"sentences":[{{"text":"one bounded claim",
 "citations":[{{"ref":1,"evidence":"exact source excerpt"}}]}}]}}]}},
+"outlook":{{"synthesis":{{"paragraphs":[{{"sentences":[{{"text":"what these papers establish together",
+"citations":[{{"ref":1,"evidence":"exact source excerpt"}}]}}]}}]}},
+"open_questions":[{{"text":"a concrete unresolved question and its evidence-bounded motivation",
+"citations":[{{"ref":1,"evidence":"exact source excerpt"}}]}}],
+"ideas":[{{"status":"proposed","title":"specific research direction",
+"basis":[{{"text":"source finding motivating this proposal",
+"citations":[{{"ref":1,"evidence":"exact source excerpt"}}]}}],
+"hypothesis":"a testable question or hypothesis",
+"experiment":"data, comparison, intervention or model experiment to run",
+"validation":"metrics, held-out test and what would refute the hypothesis",
+"expected_value":"what a positive or negative result would help decide"}}]}},
 "coverage_notes":"Describe actual search strategy, limitations and unavailable evidence"}}
 
 Each analysis field is a list of at most 3 {{"text":"claim", "evidence":"quote"}}
 objects. Every quotation must be 12–180 contiguous characters from the corresponding
-candidate's evidence. Write text in contract.language. At least one claim per
-selected paper is required; omit unsupported fields. Abstract-only evidence is not
+candidate's evidence. Write text in contract.language. Each selected paper needs
+question and methods claims, and at least one highlights/findings claim. The
+perspective object requires 1–3 anchored statements in each of its three fields.
+Use kind=reported only for an author-stated point; use kind=inferred for your
+interpretation and phrase it naturally without inventing author motives. Do not
+fill a section with generic caveats or imagined weaknesses. If the available
+evidence cannot support a substantive six-section review, exclude the paper and
+explain the evidence limit. Abstract-only evidence is not
 full text. Overview reference numbers are one-based in analyses order. Every
-sentence needs supported citations. If no papers qualify, analyses must be [] and
-overview {{"paragraphs":[]}}; still explain decisions and coverage. Do not claim
+sentence needs supported citations. If no papers qualify, analyses must be [],
+overview {{"paragraphs":[]}} and outlook
+{{"synthesis":{{"paragraphs":[]}},"open_questions":[],"ideas":[]}};
+still explain decisions and coverage. Do not claim
 an exhaustive negative from limited searches. Never invent a source, date or receipt.
+
+## Six-section paper review
+
+The reader sees exactly these six sections, in order:
+1. 问题与设计 / Problem and design: perspective.design_logic, explain the background
+   bottleneck and why this overall design addresses it.
+2. 科学问题 / Scientific question: fields.question, the question or hypothesis.
+3. 方法链 / Method chain: fields.methods, inputs/data → experimental or model steps
+   → validation, preserving important dependencies rather than listing buzzwords.
+4. 结果与亮点 / Results and highlights: fields.findings plus fields.highlights,
+   quantitative findings with their baselines and supported contributions; avoid
+   repeating the same claim across these two internal lists.
+5. 局限性 / Limitations: perspective.limitations, concrete data, method, validation
+   or generalization boundaries, distinguishing author-stated limits from inference.
+6. 有何启发 / Research implications: perspective.inspiration, what transfers and
+   what a useful next investigation could test, not a claim of completed evidence.
+
+Do not add separate highlights/findings or thought-interpretation headings. The
+internal four claim fields remain stable for older integrations; the program
+combines them with perspective into the six requested reader-facing sections.
+
+## Closing synthesis and research ideas
+
+After the paper reviews, write a substantive closing synthesis rather than repeat
+the introduction or concatenate summaries. Explain the common advance, important
+differences and concrete remaining questions supported by this issue. Keep unrelated
+topics separate. For multiple papers, cite at least two across the synthesis and
+cite every participating paper in a comparison. Use the same global references.
+Every synthesis/open-question statement and every idea basis needs source anchors.
+An unresolved question may be your reasoned inference; phrase it as a question,
+not as an invented author-reported limitation or a field-wide fact.
+
+Propose 2–4 useful, nonredundant ideas when the papers support them; one focused
+idea is enough for a narrow issue. Each idea needs 1–3 cited basis statements,
+a testable hypothesis, a feasible experiment with a baseline/ablation, validation
+metrics and a falsifying result, and conditional expected value. Use 1–4 grounded
+open questions. Set every idea status to proposed. Distinguish reported findings
+from your proposals through natural wording and the structure, without repetitive
+disclaimers. Do not claim global novelty without a separate search, promise gains,
+or present planned experiments as completed. Retain real evidence limits (including
+abstract-only access); do not equate climate emulators with language-model agents.
+The program checks sources and renders; you conduct the research and propose ideas.
 
 Call validate and repair errors, then finalize. Completion means the durable job
 status is completed, not merely that you printed a final chat message. Return the
@@ -182,17 +273,33 @@ job ID and final tool result; report unresolved blockers instead of claiming suc
 """
 
 
-def create_job(config, now=None, delivery="dry_run"):
+def create_job(config, now=None, delivery="dry_run", *, revision_of=None, revision_reason=None):
     if not is_agent(config):
         raise ValueError("Set workflow.mode=agent before creating an agent task")
     if delivery not in ("dry_run", "connector", "smtp"):
         raise ValueError("Invalid agent job delivery mode")
     local = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(config["timezone"]))
     identifier = digest_id(config, local.date())
+    if revision_of is not None:
+        if not re.fullmatch(r"[a-f0-9]{32}", revision_of):
+            raise ValueError("Invalid revision source job ID")
+        revision_reason = _text(revision_reason, "revision reason", 1000, 8)
+        identifier = _sha(_json([identifier, revision_of, revision_reason, config_fingerprint(config)]).encode())[:32]
     state = State(config["state_path"], scope=state_scope(config))
     try:
         with state.lock():
             _schema(state)
+            previous_job = None
+            if revision_of is not None:
+                previous = state.get(revision_of)
+                row = state.db.execute("SELECT data FROM agent_jobs_v1 WHERE scope=? AND id=?", (state.scope, revision_of)).fetchone()
+                if not previous or previous["status"] != "sent" or not row:
+                    raise ValueError("Revision requires a confirmed sent agent job for this same audience; it never clears an uncertain send")
+                previous_job = json.loads(row[0])
+                for name, checksum in previous_job["contract_hashes"].items():
+                    path = Path(previous_job["workspace"]) / name
+                    if path.is_symlink() or not path.is_file() or _sha(path.read_bytes()) != checksum:
+                        raise ValueError("Revision source contract integrity check failed")
             existing = state.db.execute("SELECT 1 FROM agent_jobs_v1 WHERE scope=? AND id=?", (state.scope, identifier)).fetchone()
             if existing:
                 job = _load(state, config, identifier)
@@ -203,12 +310,12 @@ def create_job(config, now=None, delivery="dry_run"):
                     if submission.is_symlink() or _sha(submission.read_bytes()) != job.get("submission_sha256"):
                         raise ValueError("Saved agent submission failed integrity validation")
                     data = read_json(submission)
-                    selected, overview, notes = _validate(state, config, job, data)
+                    selected, overview, notes, outlook = _validate(state, config, job, data)
                     job["delivery"] = delivery
                     job["events"].append({"action": "promote", "status": "authorized_invocation", "delivery": delivery})
-                    _complete(state, config, job, data, selected, overview, notes)
+                    _complete(state, config, job, data, selected, overview, notes, outlook)
                 return _public(_refresh_result(state, job))
-            if state.open_deliveries() or state.sent_on(local.date().isoformat()):
+            if state.open_deliveries() or (not previous_job and state.sent_on(local.date().isoformat())):
                 raise ValueError("An existing delivery must be reused or reconciled before creating another agent job")
             parent = Path(config["state_path"]).resolve().parent / "agent-jobs" / _sha(state.scope.encode())[:16]
             directory = parent / identifier
@@ -228,8 +335,12 @@ def create_job(config, now=None, delivery="dry_run"):
                         "publication_end": local.date().isoformat(), "topics": topic_settings,
                         "sources": config["sources"], "max_papers_per_track": config["max_papers_per_track"],
                         "include_preprints": config["include_preprints"], "delivery": delivery,
+                        "images": config["images"],
                         "tool_argv": tool_argv, "coverage": "agent-directed, non-exhaustive; disclose limits",
                         "no_email_authority": True}
+            if previous_job:
+                contract.update(revision_of=revision_of, revision_reason=revision_reason,
+                                publication_start=previous_job["publication_start"], publication_end=previous_job["publication_end"])
             # Config contains only environment-variable NAMES. Never materialize their values.
             snapshot = copy.deepcopy(config)
             snapshot["contact_email"] = ""  # Do not forward an operator contact to research APIs.
@@ -253,6 +364,17 @@ def create_job(config, now=None, delivery="dry_run"):
                    "config_fingerprint": config_fingerprint(config),
                    "contract_hashes": {name: _sha(text.encode()) for name, text in artifacts.items()},
                    "created_at": datetime.now(timezone.utc).isoformat(), "events": []}
+            if previous_job:
+                # Reuse verified registered evidence, preserving every old file/row.
+                rows = state.db.execute("SELECT sha256,path,ingested FROM agent_sources_v1 WHERE scope=? AND job_id=?", (state.scope, revision_of)).fetchall()
+                for checksum, source_path, ingested in rows:
+                    path = Path(source_path)
+                    if path.is_symlink() or not path.is_file() or _sha(path.read_bytes()) != checksum:
+                        raise ValueError("Revision source evidence integrity check failed")
+                    state.db.execute("INSERT INTO agent_sources_v1 VALUES(?,?,?,?,?)", (state.scope, identifier, checksum, source_path, ingested))
+                state.db.execute("INSERT INTO agent_candidates_v1 SELECT scope,?,paper_key,data FROM agent_candidates_v1 WHERE scope=? AND job_id=?", (identifier, state.scope, revision_of))
+                job["events"] = [copy.deepcopy(event) for event in previous_job["events"] if event.get("action") in ("search", "fetch", "ingest")]
+                job["events"].append({"action": "revision", "status": "explicitly_requested", "revision_of": revision_of, "reason": revision_reason})
             _save(state, job)
             return _public(job)
     finally:
@@ -273,8 +395,53 @@ def job_status(config, identifier):
     return tool(config, identifier, "status")
 
 
+def _registered_figures(state, identifier, paper_key=None):
+    query = "SELECT data,asset FROM agent_figures_v1 WHERE scope=? AND job_id=?"
+    args = [state.scope, identifier]
+    if paper_key is not None:
+        query += " AND paper_key=?"
+        args.append(paper_key)
+    results = [(json.loads(row[0]), json.loads(row[1]) if row[1] else None)
+               for row in state.db.execute(query + " ORDER BY rowid", args)]
+    row = state.db.execute("SELECT data FROM agent_jobs_v1 WHERE scope=? AND id=?", (state.scope, identifier)).fetchone()
+    directory = Path(json.loads(row[0])["workspace"]) / "figure-evidence"
+    for figure, _ in results:
+        for item in figure.get("provenance", {}).get("snapshots", []):
+            name = item["filename"]
+            if not re.fullmatch(r"[a-f0-9]{64}\.html", name) or directory.is_symlink():
+                raise ValueError("Invalid figure evidence snapshot path")
+            path = directory / name
+            if path.is_symlink() or not path.is_file() or _sha(path.read_bytes()) != item["sha256"]:
+                raise ValueError("Figure evidence snapshot integrity failed")
+    return results
+
+
+def _inline_images(state, job, selected):
+    wanted = {figure.get("asset_sha256") for paper in selected for figure in paper.figures if figure.get("embed_allowed")}
+    images = {asset["sha256"]: asset for _, asset in _registered_figures(state, job["job_id"])
+              if asset and asset["sha256"] in wanted}
+    return validate_inline_images(list(images.values()))
+
+
+def validate_revision_delivery(state, payload):
+    """A narrow duplicate exception created only by explicit agent-revise."""
+    previous_id = payload.get("revision_of")
+    if not previous_id:
+        return False
+    previous = state.get(previous_id)
+    if not previous or previous["status"] != "sent" or payload.get("workflow") != "agent_led":
+        raise ValueError("Revision source is not a confirmed sent agent digest")
+    if not set(payload.get("aliases", [])) <= set(previous["payload"].get("aliases", [])):
+        raise ValueError("Revision may only include papers from the original digest")
+    return True
+
+
 def _validate(state, config, job, data):
-    _object(data, {"decisions", "analyses", "overview", "coverage_notes"}, label="Agent result")
+    required = {"decisions", "analyses", "overview", "coverage_notes"}
+    if job.get("schema_version", 1) >= 2:
+        required.add("outlook")
+    # Frozen schema-1 tasks remain resumable without rewriting their contract.
+    _object(data, required, optional={"outlook"}, label="Agent result")
     notes = _text(data["coverage_notes"], "coverage_notes", 10000, 12)
     covered = {event["topic_id"] for event in job["events"] if event["status"] == "ingested"}
     topics = {topic["id"] for topic in job["topics"]}
@@ -310,7 +477,10 @@ def _validate(state, config, job, data):
             raise ValueError("Selected paper has no verified online date within the job window")
         if not config["include_preprints"] and "预印本" in paper.kind:
             raise ValueError("Preprints are excluded by configuration")
-        if state.was_sent(paper):
+        revision_aliases = set(state.get(job["revision_of"])["payload"]["aliases"]) if job.get("revision_of") else set()
+        if job.get("revision_of") and not set(paper.aliases) <= revision_aliases:
+            raise ValueError("Revision may only include original digest papers")
+        if state.was_sent(paper) and not revision_aliases:
             raise ValueError("Selected paper was already sent to this audience")
         for track in tracks:
             counts[track] += 1
@@ -323,7 +493,10 @@ def _validate(state, config, job, data):
         raise ValueError("Every included paper requires one analysis")
     ordered, analyzed = [], set()
     for analysis in analyses:
-        _object(analysis, {"key", "fields"}, label="Agent paper analysis")
+        required_analysis = {"key", "fields"}
+        if job.get("schema_version", 1) >= 2:
+            required_analysis.add("perspective")
+        _object(analysis, required_analysis, optional={"perspective"}, label="Agent paper analysis")
         key = analysis["key"]
         if not isinstance(key, str) or key not in selected or key in analyzed:
             raise ValueError("Unknown or repeated analysis key")
@@ -332,9 +505,18 @@ def _validate(state, config, job, data):
         checked = validate_analysis(analysis["fields"], paper.evidence, config["language"])
         if not any(checked.values()):
             raise ValueError("Selected paper requires at least one verified claim")
+        if job.get("schema_version", 1) >= 2 and (not checked["question"] or not checked["methods"]
+                                                   or not (checked["findings"] or checked["highlights"])):
+            raise ValueError("Six-section review requires scientific question, method chain and results/highlights")
         paper.analysis = {"mode": "llm_grounded", "language": config["language"],
                           "model": "agent:" + config["agent"]["backend"], "fields": checked,
                           "notice": "Agent-authored; source anchors checked; semantic review still needed"}
+        if "perspective" in analysis:
+            paper.analysis["perspective"] = validate_perspective(analysis["perspective"], paper.evidence, config["language"])
+        attach_figures(paper, config)
+        if config["images"]["mode"] != "off":
+            registered = _registered_figures(state, job["job_id"], paper.key)
+            paper.figures = ([item[0] for item in registered] + paper.figures)[:config["images"]["max_per_paper"]]
         ordered.append(paper)
     if ordered:
         paragraphs = validate_overview(data["overview"], ordered, config["language"])
@@ -344,7 +526,8 @@ def _validate(state, config, job, data):
         paragraphs = []
     overview = {"mode": "llm_grounded", "language": config["language"], "model": "agent:" + config["agent"]["backend"],
                 "paragraphs": paragraphs, "references": reference_map(ordered), "warnings": []}
-    return ordered, overview, notes
+    outlook = prepare_outlook(data["outlook"], ordered, config["language"]) if "outlook" in data else None
+    return ordered, overview, notes, outlook
 
 
 def tool(config, identifier, action, *, source=None, topic_id=None, query=None, url=None, input_path=None, http=None):
@@ -355,7 +538,8 @@ def tool(config, identifier, action, *, source=None, topic_id=None, query=None, 
         with state.lock():
             job = _load(state, config, identifier, mutable=action not in ("status", "library", "finalize"))
             if action == "status":
-                return {**_public(_refresh_result(state, job)), "events": job["events"], "papers": [p.export(include_text=True) for p in _candidates(state, identifier)]}
+                return {**_public(_refresh_result(state, job)), "events": job["events"], "papers": [p.export(include_text=True) for p in _candidates(state, identifier)],
+                        "figures": [figure for figure, _ in _registered_figures(state, identifier)]}
             if action == "library":
                 from .library import list_papers
                 return {"job_id": identifier, "papers": list_papers(state, query)}
@@ -363,6 +547,33 @@ def tool(config, identifier, action, *, source=None, topic_id=None, query=None, 
                 return {**_refresh_result(state, job)["result"], "reused_completed_job": True}
             if job["status"] not in ("awaiting_agent", "running"):
                 raise ValueError("Agent job is not open for tool actions")
+            if action == "figure":
+                if config["images"]["mode"] == "off":
+                    raise ValueError("Images are explicitly disabled for this job")
+                path = Path(input_path)
+                if path.is_symlink() or not path.resolve().is_relative_to(Path(job["workspace"]).resolve()):
+                    raise ValueError("Figure manifest must be inside this job workspace")
+                manifest = read_json(path)
+                papers = {paper.key: paper for paper in _candidates(state, identifier)}
+                if not isinstance(manifest, dict) or manifest.get("paper_key") not in papers:
+                    raise ValueError("Figure must name an ingested candidate")
+                figure, asset = register_figure(manifest, papers[manifest["paper_key"]], config["images"]["mode"],
+                                               reuse_context=config["images"].get("reuse_context", "general"),
+                                               evidence_dir=Path(job["workspace"]) / "figure-evidence")
+                prior = [(f, a) for f, a in _registered_figures(state, identifier)
+                         if (f["paper_key"], f["id"]) != (figure["paper_key"], figure["id"])]
+                if sum(f["paper_key"] == figure["paper_key"] for f, _ in prior) >= config["images"]["max_per_paper"]:
+                    raise ValueError("Registered figures exceed images.max_per_paper")
+                assets = {a["sha256"]: a for _, a in prior if a}
+                if asset:
+                    assets[asset["sha256"]] = asset
+                validate_inline_images(list(assets.values()))
+                state.db.execute("INSERT INTO agent_figures_v1 VALUES(?,?,?,?,?,?) ON CONFLICT(scope,job_id,paper_key,figure_id) DO UPDATE SET data=excluded.data,asset=excluded.asset",
+                                 (state.scope, identifier, figure["paper_key"], figure["id"], _json(figure), _json(asset) if asset else None))
+                job["events"].append({"action": "figure", "status": "registered", "paper_key": figure["paper_key"],
+                                      "figure_id": figure["id"], "embedded": bool(asset), "asset_sha256": asset["sha256"] if asset else None})
+                _save(state, job)
+                return {"status": "registered", "job_id": identifier, "figure": figure, "inline_image": bool(asset)}
             if action in ("search", "fetch"):
                 if topic_id not in {topic["id"] for topic in job["topics"]}:
                     raise ValueError("Choose a configured topic ID")
@@ -414,7 +625,7 @@ def tool(config, identifier, action, *, source=None, topic_id=None, query=None, 
             if action not in ("validate", "finalize"):
                 raise ValueError("Unknown agent tool action")
             data = read_json(input_path)
-            selected, overview, notes = _validate(state, config, job, data)
+            selected, overview, notes, outlook = _validate(state, config, job, data)
             if action == "validate":
                 return {"status": "validated", "job_id": identifier, "paper_count": len(selected), "semantics_verified": False}
             submission = Path(job["workspace"]) / "submission.json"
@@ -422,12 +633,12 @@ def tool(config, identifier, action, *, source=None, topic_id=None, query=None, 
             atomic_write(submission, raw)
             job["submission_sha256"] = _sha(raw.encode())
             _save(state, job)
-            return _complete(state, config, job, data, selected, overview, notes)
+            return _complete(state, config, job, data, selected, overview, notes, outlook)
     finally:
         state.close()
 
 
-def _complete(state, config, job, data, selected, overview, notes):
+def _complete(state, config, job, data, selected, overview, notes, outlook=None):
     identifier = job["job_id"]
     existing = state.get(identifier)
     if existing:
@@ -447,7 +658,7 @@ def _complete(state, config, job, data, selected, overview, notes):
         job.update(status="completed", result=result, completed_at=datetime.now(timezone.utc).isoformat())
         _save(state, job)
         return result
-    if state.open_deliveries() or state.sent_on(job["local_date"]):
+    if state.open_deliveries() or (not job.get("revision_of") and state.sent_on(job["local_date"])):
         raise ValueError("Delivery state changed during research; reconcile before finalizing")
     # Snapshot the submitted structured work and all actual tool operations.
     meta = {"local_date": job["local_date"], "timezone": config["timezone"], "profile_id": config["profile_id"],
@@ -462,20 +673,30 @@ def _complete(state, config, job, data, selected, overview, notes):
     suffix = "_agent_preview" if job["delivery"] == "dry_run" else "_agent"
     references = reference_files(selected, job["local_date"] + "_" + identifier + suffix)
     meta["reference_exports"] = reference_manifest(references)
+    if job.get("revision_of"):
+        meta.update(revision_of=job["revision_of"], revision_reason=job["revision_reason"])
     audit = {"meta": meta, "overview": overview, "papers": [paper.export(include_text=True) for paper in selected],
              "decisions": data["decisions"], "agent_tool_events": job["events"], "job_contract": read_json(job["contract_path"])}
-    text, html = render(selected, meta, config, overview)
+    if outlook is not None:
+        audit["outlook"] = outlook
+    text, html = render(selected, meta, config, overview, outlook)
     paths = {} if job["delivery"] == "connector" else write_outputs(config, identifier, text, html, audit, suffix, references)
     if job["delivery"] == "dry_run":
         _save_library(config, state, selected, identifier, paths)
         result = {"status": "dry_run", "digest_id": identifier, "paper_count": len(selected), "paths": paths}
     else:
-        text, html = render(selected, {**meta, "reference_delivery": "attachments"}, config, overview)
+        inline_images = _inline_images(state, job, selected)
+        text, html = render(selected, {**meta, "reference_delivery": "attachments", "figure_delivery": "inline"}, config, overview, outlook)
         payload = {"analysis_policy": ANALYSIS_POLICY, "workflow": "agent_led", "agent_submission_sha256": job.get("submission_sha256"), "reference_files": references,
                    "recipient": config["recipient"], "profile_id": config["profile_id"], "config_fingerprint": config_fingerprint(config),
                    "subject": f"{'科研文献精选' if config['language'].startswith('zh') else 'Literature digest'} | {job['local_date']} | {len(selected)}",
                    "text": text, "html": html, "aliases": sorted({alias for paper in selected for alias in paper.aliases}),
                    "harvest_until": job["local_date"], "paths": paths}
+        if inline_images:
+            payload["inline_images"] = inline_images
+        if job.get("revision_of"):
+            payload.update(revision_of=job["revision_of"], revision_reason=job["revision_reason"])
+            payload["subject"] += " | " + ("图文增订版" if config["language"].startswith("zh") else "Revised edition")
         if job["delivery"] == "connector":
             from .connector_delivery import prepare_payload
             result = prepare_payload(config, state, identifier, payload, audit)
@@ -511,8 +732,8 @@ def recover_job(config, identifier, agent_stopped=False):
                 if path.is_symlink() or _sha(path.read_bytes()) != job.get("submission_sha256"):
                     raise ValueError("Saved submission integrity failed; do not change delivery state")
                 data = read_json(path)
-                selected, overview, notes = _validate(state, config, job, data)
-                return _complete(state, config, job, data, selected, overview, notes)
+                selected, overview, notes, outlook = _validate(state, config, job, data)
+                return _complete(state, config, job, data, selected, overview, notes, outlook)
             job.update(status="awaiting_agent")
             job.pop("blocker", None)
             job["events"].append({"action": "operator_recovery", "status": "agent_stopped_confirmed"})

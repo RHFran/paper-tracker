@@ -108,6 +108,81 @@
     "warnings": [],
     "notice": "DEMO / synthetic, hand-authored offline introduction; no model or real literature used."
   },
+  "outlook": {
+    "synthesis": {
+      "paragraphs": [
+        {
+          "sentences": [
+            {
+              "text": "两项合成研究分别展示受控幼树实验与单地点分类结果；共同的待检验边界是结论能否迁移到成熟森林及其他地点。",
+              "citations": [
+                {
+                  "ref": 1,
+                  "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
+                },
+                {
+                  "ref": 2,
+                  "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "open_questions": [
+      {
+        "text": "在独立成熟林分中，树种分层能否同时改善排放估计与遥感制图误差的解释？",
+        "citations": [
+          {
+            "ref": 1,
+            "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
+          },
+          {
+            "ref": 2,
+            "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
+          }
+        ]
+      }
+    ],
+    "ideas": [
+      {
+        "status": "proposed",
+        "title": "合成设想：树种分层的跨地点验证",
+        "basis": [
+          {
+            "text": "两项合成研究分别展示受控幼树实验与单地点分类结果；共同的待检验边界是结论能否迁移到成熟森林及其他地点。",
+            "citations": [
+              {
+                "ref": 1,
+                "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
+              },
+              {
+                "ref": 2,
+                "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
+              }
+            ]
+          }
+        ],
+        "hypothesis": "按树种和地点分层可能更好揭示排放响应与制图误差的异质性。",
+        "experiment": "这是虚构研究计划示例：在独立成熟林分收集树种、冠层观测与重复排放数据，比较合并分析和分层分析，保持相同样本量；分别去掉季节光谱或高度特征做消融。",
+        "validation": "按地点留出，分别报告排放预测误差、制图宏平均F1和树种置信区间；若分层收益在新地点消失，就不能支持迁移假设。",
+        "expected_value": "如果验证成立，可帮助设计更有针对性的观测；如果不成立，则明确幼树实验与单地点制图不宜直接用于新森林。此处不表示已有真实研究结果。"
+      }
+    ],
+    "policy": "agent-research-outlook-v1",
+    "references": [
+      {
+        "number": 1,
+        "paper_key": "demo:forest-bvoc"
+      },
+      {
+        "number": 2,
+        "paper_key": "demo:canopy-species"
+      }
+    ],
+    "language": "zh-CN"
+  },
   "papers": [
     {
       "title": "[DEMO / SYNTHETIC 合成示例] 干旱强度与树种特异性的冠层挥发物排放",
@@ -168,10 +243,6 @@
             {
               "text": "模拟实验对三个树种的72株幼树实施两个受控干旱周期并进行跟踪测量。",
               "evidence": "The simulated experiment followed 72 saplings from three tree species through two controlled drought cycles."
-            },
-            {
-              "text": "研究范围限于受控幼树实验；成熟森林与野外季节变化未接受检验。",
-              "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
             }
           ],
           "findings": [
@@ -182,6 +253,29 @@
             {
               "text": "相对于各自的正常供水对照，三个模拟树种在重度干旱下的排放均降低。",
               "evidence": "Severe drought reduced emissions in all three simulated species relative to their watered controls."
+            }
+          ]
+        },
+        "perspective": {
+          "design_logic": [
+            {
+              "text": "把树种和干旱程度交叉比较，可检验总体均值是否掩盖不同树种的相反响应。",
+              "evidence": "The synthetic design evaluates species-specific emission responses rather than assuming a uniform drought effect.",
+              "kind": "inferred"
+            }
+          ],
+          "limitations": [
+            {
+              "text": "研究范围限于受控幼树实验；成熟森林与野外季节变化未接受检验。",
+              "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions.",
+              "kind": "reported"
+            }
+          ],
+          "inspiration": [
+            {
+              "text": "可在成熟林分中按树种重复干旱梯度比较，检验幼树响应能否迁移到冠层尺度。",
+              "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions.",
+              "kind": "inferred"
             }
           ]
         },
@@ -256,16 +350,35 @@
             {
               "text": "模拟数据集含覆盖四个树种的120个样地，训练与评估采用空间分离的林分。",
               "evidence": "The synthetic dataset contains 120 four-species plots; training and evaluation use spatially separate stands."
-            },
-            {
-              "text": "模拟比较仅覆盖一个地点，跨森林、跨传感器及稀有树种的迁移能力尚未接受检验。",
-              "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
             }
           ],
           "findings": [
             {
               "text": "在模拟的留出林分中，光谱与高度融合的宏平均F1为0.82，单季光谱基线为0.74。",
               "evidence": "Simulated held-out macro-F1 was 0.82 for spectral-plus-height features and 0.74 for the single-season spectral baseline."
+            }
+          ]
+        },
+        "perspective": {
+          "design_logic": [
+            {
+              "text": "光谱反映季节差异，高度补充结构信息；空间分离的留出林分用于检验融合是否超出训练地点的记忆。",
+              "evidence": "The synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination.",
+              "kind": "inferred"
+            }
+          ],
+          "limitations": [
+            {
+              "text": "模拟比较仅覆盖一个地点，跨森林、跨传感器及稀有树种的迁移能力尚未接受检验。",
+              "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested.",
+              "kind": "reported"
+            }
+          ],
+          "inspiration": [
+            {
+              "text": "可将季节数、结构特征与地点留出分别消融，判断融合收益来自哪一种信息。",
+              "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested.",
+              "kind": "inferred"
             }
           ]
         },

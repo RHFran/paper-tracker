@@ -1,9 +1,30 @@
-# Super Paper radar v3.0.0 validation record
+# Super Paper radar v3.1.0 validation record
 
 Validated on 2026-10-03 in a Linux cloud workspace with Python 3.12.14. This
 record covers local verification of the integrated source before publication.
 No SMTP message or installed background scheduler was part of these checks.
 The historical v2.1.0 baseline below is separate from the current correction.
+
+## Illustrated research release verification (2026-10-03)
+
+- 394 offline unit/integration tests pass, including 14 original-figure source,
+  exact rights/version, malformed raster, SSRF/proxy, asset integrity and linked
+  revision tests, plus 14 inline email/connector transport tests.
+- Source and license HTML are bound to exact ingested official article pages;
+  declared license matches the article-specific rights link. Exact figure caption,
+  image reference and version checks reject metadata-license and unrelated-link
+  substitutions. Private audit snapshots retain original source/license evidence.
+- Pillow verifies and decodes each bounded PNG/JPEG. CID assets are content-hashed,
+  immutable, MIME-checked and checked against HTML references before send claims.
+- Explicit revised editions preserve original sent contract files, paper evidence,
+  receipt and delivery record; uncertain sends cannot become a revision retry.
+- Six-section deep reads, cited closing synthesis/ideas and bilingual synthetic
+  previews are covered by Python tests and JavaScript fixture/interaction checks.
+- Four live article-original rasters were independently inspected and registered
+  for the user-requested revised issue; four papers remain source-link-only.
+  These retrievals do not establish SMTP compatibility or user inbox delivery.
+- Compile, CLI help/configuration and static JavaScript checks pass locally.
+  The historical records below describe their corresponding earlier releases.
 
 ## Agent-led release verification (2026-10-03)
 

@@ -1,21 +1,24 @@
 """Immutable transport adapter for actual program-generated digests. No research import."""
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import tempfile
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .analysis import require_analysis_payload
 from .config import valid_email
+from .figures import validate_inline_images
 
 from .references import validate_reference_files
 from .state import State, state_scope
 
 POLICY = "required-v1"
-MAX_INPUT_BYTES = 16 * 1024 * 1024
+MAX_INPUT_BYTES = 32 * 1024 * 1024
 
 
 def _json(value):
@@ -23,13 +26,35 @@ def _json(value):
 
 
 def _sha(value):
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+    return hashlib.sha256(value.encode("utf-8") if isinstance(value, str) else value).hexdigest()
+
+
+def validate_inline_references(images, html):
+    """Keep every CID image and its HTML reference paired before any delivery."""
+    class References(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.content_ids = set()
+
+        def handle_starttag(self, tag, attrs):
+            for name, value in attrs:
+                if name == "src" and value and value.strip().lower().startswith("cid:"):
+                    self.content_ids.add(value.strip()[4:])
+
+    if not isinstance(html, str):
+        raise ValueError("Prepared HTML must be a string")
+    parser = References()
+    parser.feed(html)
+    parser.close()
+    if parser.content_ids != {item["content_id"] for item in images}:
+        raise ValueError("Prepared inline image CID references do not match HTML")
+    return images
 
 
 def read_json(path):
     path = Path(path)
     if path.stat().st_size > MAX_INPUT_BYTES:
-        raise ValueError("JSON input exceeds the 16 MiB limit")
+        raise ValueError("JSON input exceeds the 32 MiB limit")
     def pairs(items):
         result = {}
         for key, value in items:
@@ -91,6 +116,17 @@ def _check_payload(item, config):
     if _sha(_json(envelope)) != payload["envelope_sha256"]:
         raise ValueError("Prepared send envelope integrity check failed")
     validate_reference_files(envelope["attachments"])
+    images = validate_inline_images(envelope.get("inline_images", []))
+    validate_inline_references(images, envelope["html"])
+    if images != validate_inline_images(payload.get("inline_images", [])):
+        raise ValueError("Prepared inline image payload integrity check failed")
+    if images:
+        expected_paths = [str(directory / item["filename"]) for item in images]
+        if payload["paths"].get("inline_images") != expected_paths:
+            raise ValueError("Prepared inline image paths integrity check failed")
+        for image in images:
+            if payload["artifact_sha256"].get(image["filename"]) != image["sha256"]:
+                raise ValueError("Prepared inline image artifact integrity check failed")
     return envelope
 
 
@@ -100,12 +136,20 @@ def prepare_payload(config, state, identifier, payload, audit):
     if state.get(identifier) or state.open_deliveries():
         raise ValueError("An existing outbox must be reused or reconciled, never replaced")
     references = validate_reference_files(payload.get("reference_files", []))
+    images = validate_inline_images(payload.get("inline_images", []))
+    validate_inline_references(images, payload["html"])
     envelope = {"schema_version": 1, "digest_id": identifier, "recipient": payload["recipient"],
                 "subject": payload["subject"], "text": payload["text"], "html": payload["html"], "attachments": references}
+    if images:
+        envelope["inline_images"] = images
     envelope_hash = _sha(_json(envelope))
     files = {"digest.txt": payload["text"], "digest.html": payload["html"],
              "audit.json": _json(audit), "envelope.json": _json(envelope)}
     files.update({r["filename"]: r["content"] for r in references})
+    for image in images:
+        if image["filename"] in files or image["filename"] == "manifest.json":
+            raise ValueError("Prepared inline image filename conflicts with another artifact")
+        files[image["filename"]] = base64.b64decode(image["content_base64"], validate=True)
     files["manifest.json"] = _json({"digest_id": identifier, "envelope_sha256": envelope_hash,
                                   "files": {name: _sha(body) for name, body in files.items()}})
     directory = Path(config["output_dir"]).resolve() / "connector" / identifier
@@ -116,7 +160,7 @@ def prepare_payload(config, state, identifier, payload, audit):
     try:
         for name, body in files.items():
             with (temporary / name).open("xb") as handle:
-                handle.write(body.encode("utf-8"))
+                handle.write(body.encode("utf-8") if isinstance(body, str) else body)
             (temporary / name).chmod(0o600)
         temporary.rename(directory)
     finally:
@@ -128,6 +172,8 @@ def prepare_payload(config, state, identifier, payload, audit):
              "audit": str(directory / "audit.json"), "envelope": str(directory / "envelope.json"),
              "manifest": str(directory / "manifest.json")}
     paths.update({r["format"]: str(directory / r["filename"]) for r in references})
+    if images:
+        paths["inline_images"] = [str(directory / image["filename"]) for image in images]
     frozen = {**payload, "transport": "connector", "language": config["language"],
               "envelope_sha256": envelope_hash, "bundle_dir": str(directory), "paths": paths,
               "paper_count": len(audit["papers"]), "artifact_sha256": {name: _sha(body) for name, body in files.items()}}
@@ -153,7 +199,8 @@ def begin_send(config, identifier, now=None):
             today = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(config["timezone"])).date().isoformat()
             if item["payload"]["harvest_until"] != today:
                 raise ValueError("Prepared outbox is stale; do not send it without reconciling the earlier preparation")
-            if state.payload_has_sent_aliases(item["payload"]):
+            from .agent_jobs import validate_revision_delivery
+            if state.payload_has_sent_aliases(item["payload"]) and not validate_revision_delivery(state, item["payload"]):
                 raise ValueError("Outbox contains already-sent papers")
             state.status(identifier, "sending")
             return {**_result(state.get(identifier)), "send_claimed": True,

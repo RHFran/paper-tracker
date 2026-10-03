@@ -12,10 +12,14 @@ from literature_digest.config import DEFAULTS, validate_config
 from literature_digest.http import RetrievalError
 from literature_digest.model_backends import cli_request, _execute, ANALYSIS_SCHEMA
 from literature_digest.models import Paper
+from model_fixture import perspective_fixture
 
 EVIDENCE = 'The model measured weather forecasts using controlled experiments.'
 ANCHOR = 'measured weather forecasts using controlled experiments'
 FIELDS_RESULT = {key: ([{'text': 'The model measured weather forecasts.', 'evidence': ANCHOR}] if key == 'findings' else []) for key in FIELDS}
+FIELDS_RESULT['question'] = [{'text': 'The fixture examines weather forecasts.', 'evidence': ANCHOR}]
+FIELDS_RESULT['methods'] = [{'text': 'The fixture uses controlled experiments.', 'evidence': ANCHOR}]
+ANALYSIS_RESULT = {'fields': FIELDS_RESULT, 'perspective': perspective_fixture(ANCHOR)}
 
 class CLIBackends(unittest.TestCase):
     def setUp(self):
@@ -46,11 +50,11 @@ class CLIBackends(unittest.TestCase):
             self.assertEqual(command[-1],'-')
             schema=json.loads(Path(command[command.index('--output-schema')+1]).read_text(encoding='utf-8'))
             self.assertEqual(schema,ANALYSIS_SCHEMA)
-            Path(command[command.index('--output-last-message')+1]).write_text(json.dumps(FIELDS_RESULT),encoding='utf-8')
+            Path(command[command.index('--output-last-message')+1]).write_text(json.dumps(ANALYSIS_RESULT),encoding='utf-8')
             return 'raw provider logs ignored'
         with patch('literature_digest.model_backends._execute',side_effect=execute):
             data,model=cli_request(self.config,'Transform source only',{'evidence':EVIDENCE},ANALYSIS_SCHEMA)
-        self.assertEqual(data,FIELDS_RESULT);self.assertEqual(model,'codex:cli-default')
+        self.assertEqual(data,ANALYSIS_RESULT);self.assertEqual(model,'codex:cli-default')
 
     def test_claude_subscription_login_not_disabled_and_tools_disabled(self):
         self.config['llm'].update(backend='claude',cli_model='chosen-model')
@@ -59,10 +63,10 @@ class CLIBackends(unittest.TestCase):
             self.assertEqual(command[command.index('--tools')+1],'')
             self.assertIn('mcp__*',command);self.assertIn('--strict-mcp-config',command)
             self.assertIn('--no-session-persistence',command)
-            return json.dumps({'subtype':'success','structured_output':FIELDS_RESULT})
+            return json.dumps({'subtype':'success','structured_output':ANALYSIS_RESULT})
         with patch('literature_digest.model_backends._execute',side_effect=execute):
             result,model=cli_request(self.config,'s',{},ANALYSIS_SCHEMA)
-        self.assertEqual(model,'claude:chosen-model');self.assertEqual(result,FIELDS_RESULT)
+        self.assertEqual(model,'claude:chosen-model');self.assertEqual(result,ANALYSIS_RESULT)
 
     def test_claude_malformed_error_and_missing_structured_json_fail(self):
         self.config['llm']['backend']='claude'
@@ -72,7 +76,7 @@ class CLIBackends(unittest.TestCase):
 
     def test_invalid_evidence_is_not_successful_cli_analysis(self):
         p=Paper('Weather model','s','s','https://example.org',abstract=EVIDENCE)
-        bad=copy.deepcopy(FIELDS_RESULT);bad['findings'][0]['evidence']='invented text that is not in evidence'
+        bad=copy.deepcopy(ANALYSIS_RESULT);bad['fields']['findings'][0]['evidence']='invented text that is not in evidence'
         with patch('literature_digest.model_backends.cli_request',return_value=(bad,'codex:test')):
             self.assertEqual(analyze(p,self.config,None)['mode'],'discovery_only')
 

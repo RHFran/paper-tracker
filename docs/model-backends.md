@@ -135,6 +135,33 @@ failed standalone analysis stops a real digest; metadata-only output is not a
 successful research report. Both workflows send research topics/evidence to the
 chosen agent or model provider, according to that provider's own data policies.
 
+New standalone/API runs use the same six paper sections as agent-led research:
+problem and design, scientific question, method chain (experimental or model
+methods), results and highlights, limitations, and research implications. The
+model returns the existing four evidence fields plus source-anchored design,
+limitation and implication statements, explicitly marked reported or inferred.
+After the introduction, a separate model call writes the closing cross-paper
+synthesis, cited open questions and proposed, testable ideas with a hypothesis,
+experiment/comparator, validation criteria and conditional value. Each citation
+must match both its source and evidence supplied to that call. Missing sections,
+invalid outlooks or insufficient synthesis input budget stop the report before
+delivery and pause automatic paid retries. There is no canned-idea fallback.
+This adds one model invocation per nonempty digest and increases input/output
+token usage and potentially cost, including dry runs; empty results make none.
+The closing call uses all selected papers within `llm.max_overview_chars`
+(default: `llm.max_evidence_chars`, normally 60000 characters). If they do not fit,
+the report stops with an explicit budget error before the closing call rather
+than silently dropping papers or the mandatory outlook. Earlier model stages
+may already have consumed usage. Reduce `max_papers_per_track` or deliberately
+increase that budget, considering the provider's context limit and token cost.
+Existing frozen reports/outboxes remain readable and are never regenerated or
+rewritten by this schema change.
+
+新的 standalone／API 运行同样输出六段解读：问题与设计、科学问题、方法链
+（实验或模型方法）、结果与亮点、局限性、有何启发。末尾另有基于本期论文的综合、
+开放问题和可检验想法，明确区分原文结论与分析推论。非空简报会增加一次模型调用；
+内容或证据校验失败时停止，不用固定模板填充，也不改写已冻结的旧报告或发信内容。
+
 ## Saved literature and coverage
 
 Successful runs save selected paper metadata, validated analysis, provenance and

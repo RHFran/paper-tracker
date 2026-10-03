@@ -71,6 +71,18 @@ digests. Read the concise README, `docs/agent-workflow.md` and
   result without repeating research or replacing a prepared/claimed envelope.
 - Use multiple profiles for different topic/schedule/agent combinations. One
   config should have one scheduler; retain its durable local state ledger.
+- New agent setups enable lawful main original figures. Read
+  `docs/original-figures.md`; the agent chooses method/framework and key-result
+  figures, registers exact caption/source/rights evidence with `figure --input`,
+  and adds a useful configured-language explanation. Never use metadata CC0 as
+  image rights, generated substitutes, or unsupported claims of inline delivery.
+  Existing explicit images.off stays off. Use CID original-image attachments.
+- New jobs use six per-paper sections and a grounded closing research outlook;
+  read `docs/research-outlook.md`. Ideas are hypotheses with citations and tests,
+  not findings proved by the papers. Preserve schema-1 compatibility.
+- Use `agent-revise` only for a user-requested revised edition of a confirmed sent
+  agent job. Keep the same audience ledger and old files; no sends happen during
+  preparation. Never edit sent history or clear deduplication to resend.
 - Run `python -m unittest discover -s tests -v`, compile checks and offline CLI
   smoke tests. Use synthetic adapters, not real SMTP/model calls, for tests.
 - Report what was verified and what was not. Configuration validation and stub

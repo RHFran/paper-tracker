@@ -10,6 +10,8 @@ from unittest.mock import patch
 from literature_digest import demo
 from literature_digest.analysis import FIELDS, validate_analysis, validate_overview
 from literature_digest.config import DEFAULTS
+from literature_digest.perspective import validate_perspective
+from literature_digest.outlook import checked_outlook
 
 
 class DemoTest(unittest.TestCase):
@@ -37,6 +39,7 @@ class DemoTest(unittest.TestCase):
                     self.assertEqual(set(paper.analysis["fields"]), set(FIELDS))
                     self.assertTrue(all(paper.analysis["fields"].values()))
                     validate_analysis(paper.analysis["fields"], paper.evidence, language)
+                    validate_perspective(paper.analysis["perspective"], paper.evidence, language)
                 validate_overview({"paragraphs": overview["paragraphs"]}, papers, language)
                 self.assertEqual([ref["number"] for ref in overview["references"]], [1, 2])
                 first = overview["paragraphs"][0]["sentences"][0]
@@ -48,10 +51,12 @@ class DemoTest(unittest.TestCase):
             before = copy.deepcopy(config)
             with patch.object(demo, "render", return_value=("DEMO text", "<html>DEMO</html>")) as renderer:
                 result = demo.preview(config, "en")
-            papers, meta, options, overview = renderer.call_args.args
+            papers, meta, options, overview, outlook = renderer.call_args.args
             self.assertEqual(options["language"], "en")
             self.assertEqual(meta["language"], "en")
             self.assertEqual(overview["language"], "en")
+            self.assertIsNotNone(checked_outlook(outlook,papers,'en',allow_synthetic=True))
+            self.assertIsNone(checked_outlook(outlook,papers,'en'))
             self.assertTrue(all(p.analysis["language"] == "en" for p in papers))
             self.assertEqual(config, before)
             self.assertEqual(result["status"], "demo_preview")
@@ -97,8 +102,8 @@ class DemoTest(unittest.TestCase):
                 self.assertIn('lang="' + language + '"', initial["html"].decode())
                 self.assertIn(result["notice"], initial["txt"].decode())
                 self.assertIn(result["notice"], initial["html"].decode())
-                for label in (("核心亮点", "科学问题", "实验或模型方法", "主要结果") if language == "zh-CN"
-                              else ("Core highlights", "Scientific question", "Experimental or model methods", "Main results")):
+                for label in (("问题与设计", "科学问题", "方法链", "结果与亮点", "局限性", "有何启发", "本期总结与研究启发") if language == "zh-CN"
+                              else ("Problem and design", "Scientific question", "Method chain", "Results and highlights", "Limitations", "Research implications", "Closing synthesis and research outlook")):
                     self.assertIn(label, initial["txt"].decode())
                     self.assertIn(label, initial["html"].decode())
                 audit = json.loads(initial["json"])
@@ -106,6 +111,7 @@ class DemoTest(unittest.TestCase):
                 self.assertTrue(audit["meta"]["synthetic"])
                 self.assertEqual(audit["meta"]["retrieved"], 0)
                 self.assertEqual(len(audit["papers"]), 2)
+                self.assertIn('outlook',audit)
                 self.assertNotIn("recipient", audit)
                 for paper in audit["papers"]:
                     for items in paper["analysis"]["fields"].values():

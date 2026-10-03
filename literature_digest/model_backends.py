@@ -26,8 +26,19 @@ def arr(items):
 
 TEXT = {"type": "string"}
 CLAIM = obj({"text": TEXT, "evidence": TEXT})
-ANALYSIS_SCHEMA = obj({k: arr(CLAIM) for k in ("highlights", "question", "methods", "findings")})
-OVERVIEW_SCHEMA = obj({"paragraphs": arr(obj({"sentences": arr(obj({"text": TEXT, "citations": arr(obj({"ref": {"type": "integer"}, "evidence": TEXT}))}))}))})
+PERSPECTIVE_CLAIM = obj({"text": TEXT, "evidence": TEXT,
+                         "kind": {"type": "string", "enum": ["reported", "inferred"]}})
+ANALYSIS_SCHEMA = obj({
+    "fields": obj({k: arr(CLAIM) for k in ("highlights", "question", "methods", "findings")}),
+    "perspective": obj({k: arr(PERSPECTIVE_CLAIM) for k in ("design_logic", "limitations", "inspiration")})
+})
+CITED_SENTENCE = obj({"text": TEXT, "citations": arr(obj({"ref": {"type": "integer"}, "evidence": TEXT}))})
+OVERVIEW_SCHEMA = obj({"paragraphs": arr(obj({"sentences": arr(CITED_SENTENCE)}))})
+OUTLOOK_SCHEMA = obj({"synthesis": OVERVIEW_SCHEMA, "open_questions": arr(CITED_SENTENCE),
+                      "ideas": arr(obj({"status": {"type": "string", "enum": ["proposed"]},
+                                        "title": TEXT, "basis": arr(CITED_SENTENCE),
+                                        "hypothesis": TEXT, "experiment": TEXT,
+                                        "validation": TEXT, "expected_value": TEXT}))})
 SCREEN_SCHEMA = obj({"decisions": arr(obj({"key": TEXT, "include": {"type": "boolean"}, "topic_ids": arr(TEXT), "reason": TEXT, "evidence": TEXT}))})
 
 

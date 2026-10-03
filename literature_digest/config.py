@@ -60,7 +60,7 @@ def _merge(base, supplied):
     result = copy.deepcopy(base)
     for key, value in supplied.items():
         if key in ("llm", "mail", "schedule", "images", "workflow", "agent"):
-            if not isinstance(value, dict) or set(value) - set(DEFAULTS[key]):
+            if not isinstance(value, dict) or set(value) - set(DEFAULTS[key]) - ({"reuse_context"} if key == "images" else set()):
                 raise ValueError(f"Invalid or unknown {key} settings")
             if key == "schedule":
                 # A profile can change calendar mode without accidentally retaining
@@ -145,6 +145,8 @@ def validate_config(c):
     if c["images"]["mode"] not in ("off", "links", "embed"):
         raise ValueError("images.mode must be off, links or embed")
     _positive(c["images"]["max_per_paper"], "images.max_per_paper", 10)
+    if c["images"].get("reuse_context", "general") not in ("general", "personal_noncommercial"):
+        raise ValueError("images.reuse_context must be general or personal_noncommercial")
     if not isinstance(c["figure_catalog"], dict):
         raise ValueError("figure_catalog must be an object keyed by canonical paper identifiers")
     for key, figures in c["figure_catalog"].items():

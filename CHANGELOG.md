@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.1.0 — 2026-10-03
+
+- Agent-chosen original scientific figures with exact caption/source/rights
+  evidence, safe bounded retrieval, full raster validation, immutable CID assets
+  and SMTP/connector inline delivery; existing explicit opt-outs are preserved.
+- Explicit linked revisions preserve previously sent jobs and source evidence.
+- Six-section per-paper deep reads and a cited closing synthesis with testable
+  research ideas; schema-1 job compatibility and synthetic previews retained.
+- Added figure/source/license/security, inline MIME/integrity and revision tests.
+
+
 ## 3.0.0 — 2026-10-03
 
 ### Agent-led research and Super Paper radar

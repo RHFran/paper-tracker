@@ -17,6 +17,7 @@ from literature_digest.models import Paper
 from literature_digest.pipeline import run, config_fingerprint, digest_id, verify_payload_config
 from literature_digest.mail import send_smtp
 from literature_digest.state import State, state_scope
+from model_fixture import perspective_fixture, outlook_fixture
 ENV = {'LITERATURE_LLM_BASE_URL': 'https://model.example.org/v1', 'LITERATURE_LLM_API_KEY': 'synthetic-review-token', 'LITERATURE_LLM_MODEL': 'synthetic-model'}
 EVIDENCE = 'The synthetic battery experiment measured reversible capacity at room temperature.'
 ANCHOR = 'measured reversible capacity at room temperature'
@@ -31,19 +32,26 @@ class ReviewModel:
         self.calls.append((url, kwargs))
         content = json.loads(kwargs['payload']['messages'][1]['content'])
         overview = 'untrusted_grounded_papers' in content
-        if self.mode == 'failure' or (self.mode == 'overview_failure' and overview):
+        outlook = 'untrusted_outlook_papers' in content
+        if self.mode == 'failure' or (self.mode == 'overview_failure' and overview) or (self.mode == 'outlook_failure' and outlook):
             raise RetrievalError('synthetic model failure: do not emit this secret-review-marker')
         if self.mode == 'malformed':
             return {'choices': []}
         if self.mode == 'bad_json':
             return {'choices': [{'message': {'content': 'not json'}}]}
-        if overview:
+        if outlook:
+            data = outlook_fixture([{'ref': source['ref'], 'evidence': ANCHOR}
+                                    for source in content['untrusted_outlook_papers']])
+        elif overview:
             source = content['untrusted_grounded_papers'][0]
             data = {'paragraphs': [{'sentences': [{'text': 'The synthetic study reports a controlled battery experiment.', 'citations': [{'ref': source['ref'], 'evidence': ANCHOR}]}]}]}
         else:
             data = {k: [] for k in FIELDS}
             if self.mode != 'empty':
                 data['findings'] = [{'text': 'The synthetic study measured room-temperature reversible capacity.', 'evidence': ANCHOR if self.mode != 'fabricated' else 'This fabricated phrase is absent from source evidence.'}]
+                data['question'] = [{'text': 'The fixture examines room-temperature battery capacity.', 'evidence': ANCHOR}]
+                data['methods'] = [{'text': 'The fixture measures capacity at room temperature.', 'evidence': ANCHOR}]
+            data = {'fields': data, 'perspective': perspective_fixture(ANCHOR)}
         return {'choices': [{'message': {'content': json.dumps(data)}}]}
 
 class RequiredLLMReview(unittest.TestCase):
@@ -97,7 +105,7 @@ class RequiredLLMReview(unittest.TestCase):
                     run(self.c, now=self.now, fetchers={'crossref': lambda *a: self.fail('retrieval before setup')})
 
     def test_model_failures_never_prepare_or_send(self):
-        for mode in ['failure', 'malformed', 'bad_json', 'empty', 'fabricated', 'overview_failure']:
+        for mode in ['failure', 'malformed', 'bad_json', 'empty', 'fabricated', 'overview_failure', 'outlook_failure']:
             with self.subTest(mode=mode):
                 with self.assertRaises((ValueError, RuntimeError)) as raised:
                     run(self.c, send=True, now=self.now, http=ReviewModel(mode), fetchers=self.fetch(), mail_adapter=lambda *a: self.fail('Invalid analysis sent'))
@@ -105,7 +113,7 @@ class RequiredLLMReview(unittest.TestCase):
                 self.assert_never_prepared()
                 self.assertFalse(Path(self.c['output_dir']).exists(), 'Failure must not look like successful output')
 
-    def test_success_runs_paper_model_and_overview(self):
+    def test_success_runs_paper_model_overview_and_outlook(self):
         http = ReviewModel()
         sent = []
 
@@ -114,12 +122,14 @@ class RequiredLLMReview(unittest.TestCase):
             state.mark_sent(id_)
         result = run(self.c, send=True, now=self.now, http=http, fetchers=self.fetch(), mail_adapter=mail)
         self.assertEqual(result['status'], 'sent')
-        self.assertEqual(len(http.calls), 2)
+        self.assertEqual(len(http.calls), 3)
         self.assertEqual(len(sent), 1)
         self.assertEqual(sent[0]['analysis_policy'], 'required-v1')
         audit = json.loads(Path(result['paths']['json']).read_text(encoding="utf-8"))
         self.assertEqual(audit['papers'][0]['analysis']['mode'], 'llm_grounded')
         self.assertEqual(audit['overview']['mode'], 'llm_grounded')
+        self.assertEqual(audit['outlook']['mode'], 'llm_grounded')
+        self.assertIn('perspective', audit['papers'][0]['analysis'])
         self.assertIn('measured room-temperature reversible capacity', sent[0]['text'])
 
     def test_empty_real_result_is_factual_not_model_failure(self):
