@@ -44,9 +44,9 @@ class CLIBackends(unittest.TestCase):
             self.assertNotIn('--dangerously-bypass-approvals-and-sandbox',command)
             self.assertIn('shell_tool',command);self.assertIn('apps',command)
             self.assertEqual(command[-1],'-')
-            schema=json.loads(Path(command[command.index('--output-schema')+1]).read_text())
+            schema=json.loads(Path(command[command.index('--output-schema')+1]).read_text(encoding='utf-8'))
             self.assertEqual(schema,ANALYSIS_SCHEMA)
-            Path(command[command.index('--output-last-message')+1]).write_text(json.dumps(FIELDS_RESULT))
+            Path(command[command.index('--output-last-message')+1]).write_text(json.dumps(FIELDS_RESULT),encoding='utf-8')
             return 'raw provider logs ignored'
         with patch('literature_digest.model_backends._execute',side_effect=execute):
             data,model=cli_request(self.config,'Transform source only',{'evidence':EVIDENCE},ANALYSIS_SCHEMA)
@@ -79,7 +79,7 @@ class CLIBackends(unittest.TestCase):
     def test_timeout_kills_and_reaps_process(self):
         process=unittest.mock.Mock(pid=1234)
         process.communicate.side_effect=[subprocess.TimeoutExpired('codex',1),('','')]
-        with patch('literature_digest.model_backends.subprocess.Popen',return_value=process) as popen,patch('literature_digest.model_backends.os.name','posix'),patch('literature_digest.model_backends.os.killpg',create=True) as kill:
+        with patch('literature_digest.model_backends.subprocess.Popen',return_value=process) as popen,patch('literature_digest.model_backends.os.name','posix'),patch('literature_digest.model_backends.os.killpg',create=True) as kill,patch('literature_digest.model_backends.signal.SIGKILL',9,create=True):
             with self.assertRaisesRegex(RetrievalError,'timed out'):_execute(['codex'],'source','/tmp',1)
             self.assertFalse(popen.call_args.kwargs['shell']);self.assertTrue(kill.called)
             self.assertEqual(process.communicate.call_count,2)

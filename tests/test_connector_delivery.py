@@ -41,10 +41,10 @@ class ConnectorDelivery(unittest.TestCase):
 
     def test_full_pipeline_prepares_immutable_bundle_without_mail(self):
         result=self.prepare();self.assertEqual(result['status'],'prepared')
-        audit=json.loads(Path(result['paths']['audit']).read_text())
+        audit=json.loads(Path(result['paths']['audit']).read_text(encoding='utf-8'))
         self.assertEqual(audit['papers'][0]['analysis']['mode'],'llm_grounded')
         self.assertEqual(audit['overview']['mode'],'llm_grounded')
-        envelope=json.loads(Path(result['paths']['envelope']).read_text())
+        envelope=json.loads(Path(result['paths']['envelope']).read_text(encoding='utf-8'))
         self.assertEqual(len(envelope['attachments']),2)
         self.assertIsNone(self.state().checkpoint())
         self.assertEqual(self.state().receipt(result['digest_id']),None)
@@ -90,7 +90,7 @@ class ConnectorDelivery(unittest.TestCase):
         with self.assertRaises(ValueError):confirm_sent(self.c,r['digest_id'],self.receipt(r))
 
     def test_tampered_artifact_blocks_claim(self):
-        r=self.prepare();Path(r['paths']['html']).write_text('tampered')
+        r=self.prepare();Path(r['paths']['html']).write_text('tampered',encoding='utf-8')
         with self.assertRaisesRegex(ValueError,'integrity'):begin_send(self.c,r['digest_id'],now=self.now)
         self.assertEqual(self.state().get(r['digest_id'])['status'],'prepared')
 

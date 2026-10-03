@@ -44,7 +44,7 @@ class ProgramStages(unittest.TestCase):
         original=copy.deepcopy(self.c)
         result=run(self.c,now=self.now,http=StageModel(),fetchers=self.fetch())
         self.assertEqual(result['paper_count'],1);self.assertEqual(self.c,original)
-        audit=json.loads(Path(result['paths']['json']).read_text())
+        audit=json.loads(Path(result['paths']['json']).read_text(encoding='utf-8'))
         self.assertEqual(audit['meta']['query_plan'][0]['queries'],['electrochemical storage'])
         self.assertTrue(audit['meta']['model_screening'][0]['include'])
         s=self.state();self.assertEqual(len(list_papers(s)),1);self.assertEqual(s.recent(),[])
@@ -63,7 +63,7 @@ class ProgramStages(unittest.TestCase):
             papers,report=original(*args);return papers,{'complete':False,'truncated':True}
         self.c['retrieval_policy']='bounded'
         result=run(self.c,now=self.now,http=StageModel(),fetchers={'crossref':partial})
-        self.assertIn('not an exhaustive',Path(result['paths']['txt']).read_text())
+        self.assertIn('not an exhaustive',Path(result['paths']['txt']).read_text(encoding='utf-8'))
 
     def test_explicit_exclusions_remain_binding_before_screen(self):
         p=Paper('Battery excluded system','id','s','https://example.org',abstract=EVIDENCE)
