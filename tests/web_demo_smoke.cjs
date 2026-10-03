@@ -36,7 +36,7 @@ function boot(search = '') {
 }
 const { nodes, buttons, document } = boot();
 assert.equal(document.documentElement.lang, 'zh-CN');
-assert.match(document.title, /^Smart Paper Tracker/);
+assert.match(document.title, /^Super Paper radar/);
 assert.equal(nodes.get('paper-list').children.length, 2);
 assert.equal(nodes.get('reference-list').children.length, 2);
 assert.match(nodes.get('schedule-summary').textContent, /08:00/);
@@ -47,7 +47,7 @@ for (const [topic, count] of [['bvoc',1],['canopy',1],['all',2],['bvoc',1]]) {
 }
 buttons[1].dispatch('click');
 assert.equal(document.documentElement.lang, 'en');
-assert.match(document.title, /^Smart Paper Tracker/);
+assert.match(document.title, /^Super Paper radar/);
 assert.equal(nodes.get('output-language').value, 'en');
 assert.equal(nodes.get('paper-list').children.length, 1, 'filter must survive language switch');
 assert.equal(nodes.get('paper-count').textContent, '1 synthetic paper');

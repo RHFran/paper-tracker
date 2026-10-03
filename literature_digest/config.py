@@ -10,6 +10,9 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 DEFAULTS = {
     "profile_id": "default",
+    # Preserve old files; init and new examples explicitly choose agent mode.
+    "workflow": {"mode": "standalone"},
+    "agent": {"backend": "codex", "executable": "", "model": "", "reasoning_effort": "", "timeout_seconds": 1800},
     "retrieval_policy": "complete",
     "recipient": "researcher@example.org",
     "timezone": "Asia/Shanghai",
@@ -33,7 +36,7 @@ DEFAULTS = {
     "llm": {"enabled": False, "backend": "api", "cli_executable": "", "cli_model": "", "cli_timeout_seconds": 180, "screen_candidates": False, "plan_queries": False, "max_screen_candidates": 50, "base_url_env": "LITERATURE_LLM_BASE_URL", "api_key_env": "LITERATURE_LLM_API_KEY", "model_env": "LITERATURE_LLM_MODEL", "max_evidence_chars": 60000},
     "mail": {"enabled": False, "host_env": "LITERATURE_SMTP_HOST", "port": 465, "security": "ssl", "user_env": "LITERATURE_SMTP_USER", "password_env": "LITERATURE_SMTP_PASSWORD", "from_env": "LITERATURE_MAIL_FROM"},
 }
-PROFILE_FIELDS = {"retrieval_policy", "llm", "id", "recipient", "timezone", "language", "topics", "schedule", "images", "publication_window_days", "include_preprints", "max_papers_per_track"}
+PROFILE_FIELDS = {"workflow", "agent", "retrieval_policy", "llm", "id", "recipient", "timezone", "language", "topics", "schedule", "images", "publication_window_days", "include_preprints", "max_papers_per_track"}
 ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
@@ -56,7 +59,7 @@ def _strings(value, label, required=False):
 def _merge(base, supplied):
     result = copy.deepcopy(base)
     for key, value in supplied.items():
-        if key in ("llm", "mail", "schedule", "images"):
+        if key in ("llm", "mail", "schedule", "images", "workflow", "agent"):
             if not isinstance(value, dict) or set(value) - set(DEFAULTS[key]):
                 raise ValueError(f"Invalid or unknown {key} settings")
             if key == "schedule":
@@ -104,6 +107,22 @@ def validate_config(c):
         for name, value in c[key].items():
             if name.endswith("_env") and (not isinstance(value, str) or not ENV_NAME.fullmatch(value)):
                 raise ValueError(f"{key}.{name} must be an environment variable name, never a secret")
+    if c.get("workflow", {}).get("mode", "standalone") not in ("agent", "standalone"):
+        raise ValueError("workflow.mode must be agent or standalone")
+    agent = c.get("agent", DEFAULTS["agent"])
+    if agent.get("backend") not in ("codex", "claude", "host"):
+        raise ValueError("agent.backend must be codex, claude or host")
+    for name in ("executable", "model"):
+        value = agent.get(name, "")
+        if not isinstance(value, str) or len(value) > 2000 or any(ord(char) < 32 for char in value):
+            raise ValueError("agent." + name + " must be a single-line string")
+    effort = agent.get("reasoning_effort", "")
+    efforts = {"codex": {"", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"},
+               "claude": {"", "low", "medium", "high", "xhigh", "max", "ultracode"},
+               "host": {"", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra", "ultracode"}}
+    if not isinstance(effort, str) or effort not in efforts[agent["backend"]]:
+        raise ValueError("agent.reasoning_effort is unsupported for the selected backend; model/client availability still requires a live test")
+    _positive(agent.get("timeout_seconds", 1800), "agent.timeout_seconds", 7200)
     llm = c["llm"]
     if llm.get("backend", "api") not in ("api", "codex", "claude"):
         raise ValueError("llm.backend must be api, codex or claude")

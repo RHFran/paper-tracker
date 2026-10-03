@@ -3,12 +3,14 @@
 [English](platform-setup.md) · [首页](../README_中文.md) · [配置指南](user-guide_中文.md)
 
 **最快的方式：把仓库链接和下面这段提示词交给你的编程 Agent。**
-无论使用哪种 Agent，最终运行的都是同一套 Python 程序，由程序自己检索、筛选、分析、
-去重和调度。模型可用执行机器上已安装并登录的 Codex / Claude Code CLI，也可用独立
-API；CLI 模式不要求第二把 API key。投递可选 SMTP 或获授权的已连接邮件工具。
-一次 Agent 对话不会自动提供全天在线主机、可用的 CLI 登录、模型额度或发件邮箱。
+Super Paper radar 为 Agent 主导的研究提供工具。Codex、Claude Code 或宿主 Agent
+自主规划并执行研究，调用程序的检索、证据、校验和文献库工具。选择已安装并登录的 CLI，
+或能执行项目命令的宿主 Agent；可用的 Agent 登录不要求第二把模型 API key。
+独立 standalone API 固定流程仍可选。投递可选 SMTP 或获授权的已连接邮件工具。
+一次 Agent 对话不会自动提供全天在线主机、可用登录、模型额度或发件邮箱。
 
-真实简报**必须使用大模型**。CLI 和 API 都消耗模型/账户用量，费用与限制取决于套餐、
+真实简报需要可用的研究 Agent，或已配置的 standalone 大模型。
+Agent 与 standalone 模式都消耗模型／账户用量，费用与限制取决于套餐、
 模型、论文数量和证据长度。安装、配置校验、明确标注为合成数据的
 离线预览**不调用模型**。真实 dry-run 虽然不发邮件，仍可能调用模型并产生费用。
 
@@ -17,20 +19,21 @@ API；CLI 模式不要求第二把 API key。投递可选 SMTP 或获授权的�
 替换方括号中的内容，不要填写密码或 API Key。
 
 > 请在[这台 Windows 电脑 / 指定的 Linux 服务器 / 我指定的已连接电脑或编程环境]
-> 安装 https://github.com/RHFran/smart-paper-tracker 。先阅读 AGENTS.md 和
+> 安装 https://github.com/RHFran/super-paper-radar 。先阅读 AGENTS.md 和
 > docs/platform-setup_中文.md，检查源码，再运行仓库提供的安装脚本，使用隔离虚拟
 > 环境并保留已有私有配置。我的研究方向是[主题]，输出语言[语言]，时区[IANA 时区]，
 > 发送计划[星期或具体日期、本地时间]。主题、计划或模型不同时请使用独立订阅。
-> 检查执行机器上是否已有安装并登录的 Codex / Claude Code CLI，配置我选择的模型后端。
-> CLI 模式使用 --skip-model 跳过 API 向导；只有我选择独立 API 时才运行 configure-model，
-> 由我在本地隐藏输入 Key。程序自己检索和分析论文。真实模型调用前说明用量和费用，
+> 检查执行机器上是否已有安装并登录的 Codex / Claude Code CLI，设置 workflow.mode=agent，
+> 由我选择的 Agent 自主规划、检索、阅读证据和综合，调用程序工具完成研究。若我选择
+> 当前宿主 Agent，就使用导出的任务契约。只有我选择独立 API 时才使用 standalone 模式
+> 和 configure-model，由我在本地隐藏输入 Key。真实调用前说明用量和费用，
 > 先展示离线预览。付费真实测试、发邮件或
 > 启用持久定时任务前先让我确认。不要把密钥放进聊天、源码、命令参数或日志。
 
 - **Codex：** 把仓库作为项目打开，或在仓库目录运行 `codex`，粘贴上面的提示词。
   安装与登录按[官方 CLI 指南](https://learn.chatgpt.com/docs/codex/cli)操作。
 - **Claude Code：** 打开仓库，或在目录内运行 `claude`。不同系统的安装方式见
-  [官方安装指南](https://code.claude.com/docs/en/setup)。无需专用 Smart Paper Tracker 插件。
+  [官方安装指南](https://code.claude.com/docs/en/setup)。无需专用 Super Paper radar 插件。
 - **ChatGPT：** 使用能访问目标仓库和执行工具的任务。没有这些工具的普通对话可以
   提供命令，由你执行。[电脑访问](https://learn.chatgpt.com/docs/computer-use)与
   [远程连接](https://learn.chatgpt.com/docs/remote-connections)能力取决于客户端、
@@ -42,7 +45,7 @@ API；CLI 模式不要求第二把 API key。投递可选 SMTP 或获授权的�
 
 API 模式的隐藏输入 Key 步骤应交给你在本地完成。CLI 模式通过对应 CLI 的官方流程登录，
 不要把其凭据复制到项目中。不要把真实 Key 粘贴到提示词里。
-这是源码安装流程，并非已经上架的 Smart Paper Tracker MCP 服务，也不意味着每种助手
+这是源码安装流程，并非已经上架的 Super Paper radar MCP 服务，也不意味着每种助手
 客户端都能无条件“一键安装”。
 
 ## 2. 自己运行安装脚本
@@ -54,14 +57,14 @@ venv 可用后，项目安装本身不需要管理员权限。
 ### Linux、macOS 或已准备好的 WSL
 
 ```bash
-git clone https://github.com/RHFran/smart-paper-tracker.git && cd smart-paper-tracker && bash scripts/setup.sh
+git clone https://github.com/RHFran/super-paper-radar.git && cd super-paper-radar && bash scripts/setup.sh
 ```
 
 ### 原生 Windows PowerShell
 
 ```powershell
-git clone https://github.com/RHFran/smart-paper-tracker.git
-if ($LASTEXITCODE -eq 0) { Set-Location smart-paper-tracker; .\scripts\setup.ps1 }
+git clone https://github.com/RHFran/super-paper-radar.git
+if ($LASTEXITCODE -eq 0) { Set-Location super-paper-radar; .\scripts\setup.ps1 }
 ```
 
 已有仓库时，在仓库目录只运行安装脚本。如果组织策略阻止 PowerShell 脚本，
@@ -71,37 +74,52 @@ if ($LASTEXITCODE -eq 0) { Set-Location smart-paper-tracker; .\scripts\setup.ps1
 py -3 scripts/setup.py
 ```
 
-脚本创建或复用 `.venv`、安装当前源码、询问读者设置，在新配置的首次安装中提供
-模型配置向导，最后校验并生成**离线合成预览**。不会启用邮件、修改系统安全设置、
+脚本创建或复用 `.venv`、安装当前源码、询问读者设置，并创建 Agent 主导的新配置。
+独立 API 向导须用 `--api` 主动选择。最后校验并生成**离线合成预览**。不会启用邮件、修改系统安全设置、
 安装系统定时任务，也不会覆盖已有配置。`validate` 输出可能含收件地址，分享日志前
 请自行检查。
 
 只想先看**无交互演示**：使用 `bash scripts/setup.sh --demo` 或
 `.\scripts\setup.ps1 -Demo`。配置位于 `runtime/demo/config.json`，展示的是虚构
-论文，不是按你的主题检索的真实结果。读者设置后暂时跳过模型输入可加 `--skip-model`
-或 `-SkipModel`；已有环境且不想运行 pip 可加 `--skip-install` 或 `-SkipInstall`。
+论文，不是按你的主题检索的真实结果。正常安装不要求独立模型 API key；`--skip-model`
+或 `-SkipModel` 仍兼容用于跳过 API 向导。已有环境且不想运行 pip 可加
+`--skip-install` 或 `-SkipInstall`。
 
 包装脚本可从其他目录启动。传给包装脚本的相对配置/环境文件路径按仓库目录解析；
 JSON 内的状态和输出路径按该 JSON 所在目录解析。服务器服务建议全部使用绝对路径。
 
 ## 3. 输入供应商、模型与 Key
 
-### 先选择 CLI 或 API
+### 优先选择 Agent 主导研究
 
-使用已安装并登录的 CLI，安装时加 `--skip-model` / `-SkipModel` 跳过 API 向导，
-然后在私有配置中设置 `llm.enabled: true`、`llm.backend: "codex"` 或 `"claude"`。
-`cli_model` 留空使用隔离调用的有效 CLI 默认模型，不读取用户配置中的模型；`cli_executable` 可指定命令路径。执行程序的
-系统用户应与 CLI 登录用户一致。程序调用 CLI 获取结构化分析，不需要导入宿主手写报告。
-按需启用 `llm.plan_queries` 和 `llm.screen_candidates`，让模型辅助查询规划和相关性
-筛选；这两个可选阶段会增加模型调用。
+新配置使用 `workflow.mode: "agent"`，在根层或对应档案配置 `agent`：
 
-[后端选项、就绪检查与邮件工具流程](model-backends.md)说明默认值、用量限制和投递选择。
-CLI 模式的 `.env` 不需要独立 API 凭据；如选 SMTP，SMTP 凭据仍需单独配置。
+```json
+{
+  "workflow": {"mode": "agent"},
+  "agent": {"backend": "codex", "executable": "", "model": "", "reasoning_effort": "", "timeout_seconds": 1800}
+}
+```
+
+Claude Code 选择 `agent.backend: "claude"`；由现有宿主 Agent 执行时选择 `"host"`。
+创建新配置时可用 `init --agent-backend codex|claude|host`。`agent.model` 留空保留 Agent
+配置的默认模型；`agent.executable` 可指定命令路径。执行用户应与 CLI 登录用户一致。
+保留正常工具和安全控制；权限阻挡须按授权流程解决，不能使用绕过权限的参数。
+
+`run`、到期的 `tick` 和 `schedule` 启动完整研究任务。`host` 会返回 `awaiting_agent`
+及持久任务／契约文件，由宿主通过程序工具完成。详见 [Agent 工作流](agent-workflow.md)
+中的导出、检索、抓取、导入、校验与完成契约。导出任务或 Agent 在聊天中声称完成，都
+不能替代程序对研究结果的检查。
+
+旧配置缺少 `workflow` 时继续使用 `standalone`，只有明确修改才迁移。Agent 模式不由
+`llm.enabled` 或旧的查询规划／筛选开关控制。[模式选择与就绪检查](model-backends.md)
+说明用量限制及投递选择。CLI 凭据留在 CLI 中；如选 SMTP，另行配置 SMTP 凭据。
 
 ### 独立 API：保留原有本地向导
 
-本节余下内容适用于 `llm.backend: "api"`，也是省略 `backend` 时的默认值。
-首次安装时跳过了 API 向导，可以单独运行：
+本节余下内容适用于可选的 `workflow.mode: "standalone"` 固定流程，其中 `llm.backend`
+省略时默认 `"api"`。新安装可用 `bash scripts/setup.sh --api` 明确选择，或在私有配置
+选择 standalone 后，单独运行向导：
 
 ```bash
 bash scripts/run.sh --config config.json configure-model
@@ -161,8 +179,9 @@ API 模式请求 `<base URL>/chat/completions`，使用 JSON-object 输出。模
 
 模型名单、价格和 JSON 支持情况请以供应商当前控制台为准。千问 Key、地区和工作区
 必须匹配；后台服务应使用按量付费/API 通道，不要使用限定交互式编程工具的 Coding
-Plan Key。CLI 登录不是 API key；要使用受支持的 CLI 登录，请选择 `codex` 或 `claude`
-后端，不要把登录凭据填进 API key 槽位。
+Plan Key。CLI 登录不是 API key；主流程请选择 `codex` 或 `claude` Agent 后端，不要把
+登录凭据填进 API key 槽位。Standalone 中仍保留旧的仅模型调用 CLI 后端，见
+[兼容模式](model-backends.md#standalone-compatibility-mode)。
 
 ### 加载已保存的 Key，或仅临时输入
 
@@ -195,8 +214,9 @@ Windows 将 `bash scripts/run.sh` 替换为 `.\scripts\run.ps1`。若不使用 P
 发送流程。使用获授权的已连接邮件工具时，按[邮件工具流程](model-backends.md#connector-send-lifecycle)
 执行 `run --prepare-connector`、`begin-send`、外部工具发送一次，再用 `confirm-sent`
 写入已确认回执。准备过程忽略 SMTP 的 `mail.enabled`，不需要 SMTP 凭据。
-目前只有 `run` 支持准备连接工具消息，由宿主安排和执行外部工具调用；内置
-`tick` / `schedule` 的发送路径仍为 SMTP。
+Agent 模式也支持 `tick --prepare-connector` 与 `schedule --prepare-connector`；
+standalone 仅支持 `run` 准备。Host 先完成返回的研究任务，由宿主安排实际外部邮件工具
+调用和回执导入。`--send` 仍为 SMTP；`--prepare-connector` 本身不发送。
 
 使用 SMTP 时，按 [`.env.example`](../.env.example) 中的邮件变量配置
 你有权使用的 SMTP 账户和发件地址，并设置 `mail.enabled: true`。仅提供收件邮箱
@@ -212,8 +232,10 @@ bash scripts/run.sh --env-file .env --config config.json schedule --send
 Windows 通过 `run.ps1` 使用相同参数。`Ctrl+C` 停止前台定时程序；关终端、重启电脑
 也会停止。不加 `--send` 的 `run`、`tick`、`schedule` 都是**真实 dry-run**，仍可能
 消耗模型 token。不要给同一份配置同时启动前台定时程序和系统定时任务。
-CLI 模型后端的调度进程须以已登录的 CLI 用户运行，并通过 `PATH` 或 `cli_executable`
-找到命令。请检查登录有效性和账户额度；其他机器上的交互对话不会自动让此进程就绪。
+Agent CLI 的调度进程须以已登录的 CLI 用户运行，通过 `PATH` 或 `agent.executable`
+找到命令。Host 后端还需要可用宿主 Agent 完成导出的任务，定时器本身不能完成研究。
+请检查登录有效性、工具权限和账户额度。失败任务应先查原因，再明确使用 `--retry-agent`
+允许重试，不能让每分钟 tick 重复产生付费调用。
 
 - **Linux 自有服务器：** 使用普通用户与一种进程管理方式。参考
   [systemd、cron、Docker 部署示例](../examples/README.md)。使用私有环境变量，

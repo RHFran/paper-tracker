@@ -57,4 +57,4 @@ BibTeX: demo.en.bib
 Contains invented demo records only; do not import as real research.
 
 Synthetic demonstration for layout, functionality and citation numbering only.
-Claim-level evidence and retrieval records are in the accompanying audit JSON. Anchor matching checks provenance; model interpretations still need source review.
+Claim-level evidence and retrieval records are saved in the local audit record. Anchor matching checks provenance; model interpretations still need source review.

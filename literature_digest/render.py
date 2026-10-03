@@ -13,7 +13,7 @@ from .sources import _reuse_license
 
 LABELS = {
     "zh": {
-        "title": "科研文献日报", "eyebrow": "SMART PAPER TRACKER / RESEARCH BRIEF",
+        "title": "科研文献日报", "eyebrow": "SUPER PAPER RADAR / RESEARCH BRIEF",
         "overview": "综述导读", "papers": "逐篇精读", "references": "参考文献",
         "highlights": "核心亮点", "question": "科学问题", "methods": "实验或模型方法",
         "findings": "主要结果",
@@ -26,14 +26,14 @@ LABELS = {
         "failure": "检索失败或不完整：不能判断是否有新论文。未发送邮件，未推进成功检查点。",
         "window": "发表日期范围", "deferred": "篇候选因本期篇数上限暂缓",
         "footer": "范围与方法：仅收录已核实线上发表日期的文献；日精度边界保留标记。公开来源覆盖有限，期刊记录不等于已核实同行评审。",
-        "audit": "逐条证据与检索记录见配套审计 JSON。引文锚点核对仅验证出处，模型概括仍需结合原文判断。",
+        "audit": "逐条证据与检索记录保存在本地审计记录中。引文锚点核对仅验证出处，模型概括仍需结合原文判断。",
         "other": "其他研究", "preprint": "预印本", "intro": "本期收录 {count} 篇新近文献，涵盖{topics}。",
         "extracts": "以下摘取经来源锚点核对的主要发现。",
         "demo": "合成演示：所有论文、作者、数据与研究结论均为测试夹具，不是真实文献。",
         "demo_records": "演示记录", "demo_evidence": "合成夹具文本", "demo_footer": "合成演示仅用于核对版式、功能与引文编号。",
     },
     "en": {
-        "title": "Research Literature Digest", "eyebrow": "SMART PAPER TRACKER / RESEARCH BRIEF",
+        "title": "Research Literature Digest", "eyebrow": "SUPER PAPER RADAR / RESEARCH BRIEF",
         "overview": "Research overview", "papers": "Paper-by-paper review", "references": "References",
         "highlights": "Core highlights", "question": "Scientific question", "methods": "Experimental or model methods",
         "findings": "Main results",
@@ -46,7 +46,7 @@ LABELS = {
         "failure": "Retrieval failed or was incomplete; new-paper availability is unknown. No email was sent and the success checkpoint was not advanced.",
         "window": "Publication window", "deferred": "additional candidates deferred by the issue limit",
         "footer": "Scope and methods: verified online publication dates only; date-only window boundaries are flagged. Public-source coverage is limited, and journal indexing does not establish peer-review status.",
-        "audit": "Claim-level evidence and retrieval records are in the accompanying audit JSON. Anchor matching checks provenance; model interpretations still need source review.",
+        "audit": "Claim-level evidence and retrieval records are saved in the local audit record. Anchor matching checks provenance; model interpretations still need source review.",
         "other": "Other research", "preprint": "Preprint", "intro": "This issue includes {count} recent papers covering {topics}.",
         "extracts": "Selected source-anchored findings are highlighted below.",
         "demo": "SYNTHETIC DEMO: all papers, authors, data and research claims are test fixtures, not real publications.",

@@ -1,4 +1,4 @@
-# Smart Paper Tracker · Offline demo / 离线演示
+# Super Paper radar · Offline demo / 离线演示
 
 [English README](../../README.md) · [中文说明](../../README_中文.md)
 

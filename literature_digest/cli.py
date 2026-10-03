@@ -17,6 +17,7 @@ from .mail import send_smtp
 from .pipeline import config_fingerprint, run, verify_payload_config
 from .schedule import is_due, next_run
 from .state import State, state_scope
+from .agent_jobs import is_agent, require_agent
 
 
 def initialize(args, input_fn=input):
@@ -38,7 +39,7 @@ def initialize(args, input_fn=input):
     zone = answer(args.timezone, "IANA timezone", "Asia/Shanghai")
     at = answer(args.at, "Daily send time HH:MM", "08:30")
     topics = [{"id": f"topic-{i}", "name": topic, "queries": [topic], "include_any": [], "include_all": [], "exclude_any": []} for i, topic in enumerate(directions, 1)]
-    config = {"recipient": recipient, "language": language, "timezone": zone, "topics": topics, "schedule": {"time": at, "weekdays": list(range(7)), "catch_up": True}, "images": {"mode": "off", "max_per_paper": 3}, "llm": {"enabled": False, "plan_queries": True, "screen_candidates": True}, "mail": {"enabled": False}}
+    config = {"recipient": recipient, "language": language, "timezone": zone, "topics": topics, "schedule": {"time": at, "weekdays": list(range(7)), "catch_up": True}, "workflow": {"mode": "agent"}, "agent": {"backend": getattr(args, "agent_backend", "codex")}, "images": {"mode": "off", "max_per_paper": 3}, "llm": {"enabled": False, "plan_queries": True, "screen_candidates": True}, "mail": {"enabled": False}}
     checked = copy.deepcopy(DEFAULTS)
     for key, value in config.items():
         if isinstance(value, dict):
@@ -55,12 +56,12 @@ def initialize(args, input_fn=input):
         path.chmod(0o600)
     except OSError:
         pass
-    return {"status": "configured", "path": str(path.resolve()), "next": "preview for the offline demo; select a logged-in Codex/Claude CLI or compatible API model for the full pipeline. Configure SMTP for automatic delivery or use run --prepare-connector for an external mail adapter.", "schedule_installed": False}
+    return {"status": "configured", "path": str(path.resolve()), "next": "preview for the offline demo; choose agent.backend codex/claude/host. The agent executes configured research using project tools. Use workflow.mode=standalone only for the optional fixed model/API pipeline. Configure SMTP for automatic delivery or use run --prepare-connector for an external mail adapter.", "schedule_installed": False}
 
 
 def model_readiness(config):
     try:
-        require_llm(config)
+        require_agent(config) if is_agent(config) else require_llm(config)
     except ValueError as exc:
         return {"llm_required": True, "live_ready": False, "live_blocker": str(exc), "readiness_note": "Static configuration only; login, runtime storage, quota and provider calls are not tested."}
     return {"llm_required": True, "live_ready": True, "live_blocker": None, "readiness_note": "Static configuration only; login, runtime storage, quota and provider calls are not tested."}
@@ -81,10 +82,13 @@ def _model_pause(config, state, local_day):
     return None
 
 
-def _run_one(config, command, send=False, now=None):
+def _run_one(config, command, send=False, now=None, prepare_connector=False, retry_agent=False):
     now = now or datetime.now(timezone.utc)
     if command == "tick" and not is_due(config, now):
         return {"profile_id": config["profile_id"], "status": "not_due", "next_run": next_run(config, now)}
+    if is_agent(config):
+        from .agent_runner import run_agent
+        return {"profile_id": config["profile_id"], **run_agent(config, send=send, now=now, prepare_connector=prepare_connector, retry=retry_agent)}
     if command == "tick":
         require_llm(config)
         state = State(config["state_path"], scope=state_scope(config))
@@ -94,14 +98,14 @@ def _run_one(config, command, send=False, now=None):
             state.close()
         if pause:
             return {"profile_id": config["profile_id"], "status": "model_paused", "pause": pause}
-    return {"profile_id": config["profile_id"], **run(config, send=send, now=now)}
+    return {"profile_id": config["profile_id"], **run(config, send=send, now=now, prepare_connector=prepare_connector)}
 
 
-def _many(configs, command, send=False, now=None):
+def _many(configs, command, send=False, now=None, prepare_connector=False, retry_agent=False):
     results = []
     for config in configs:
         try:
-            results.append(_run_one(config, command, send, now))
+            results.append(_run_one(config, command, send, now, prepare_connector, retry_agent))
         except Exception as exc:
             # Avoid exposing provider payloads/credentials from unexpected exceptions.
             results.append({"profile_id": config["profile_id"], "status": "error", "error": str(exc) if isinstance(exc, (ValueError, RuntimeError)) else type(exc).__name__})
@@ -111,16 +115,17 @@ def _many(configs, command, send=False, now=None):
 def _report(result):
     print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)
     items = result if isinstance(result, list) else [result]
-    return 1 if any(r.get("status") == "error" for r in items) else 2 if any(r.get("status") == "retrieval_failed" for r in items) else 3 if any(r.get("status") == "model_paused" for r in items) else 0
+    return 1 if any(r.get("status") in ("error", "blocked", "interrupted") for r in items) else 2 if any(r.get("status") == "retrieval_failed" for r in items) else 3 if any(r.get("status") == "model_paused" for r in items) else 0
 
 
 def _main(argv=None):
-    parser = argparse.ArgumentParser(description="Smart Paper Tracker: research directions → evidence-aware literature email. Dry-run by default.")
+    parser = argparse.ArgumentParser(description="Super Paper radar: research directions → evidence-aware literature email. Dry-run by default.")
     parser.add_argument("--config", default="config.json", help="Operator and reader JSON configuration")
     parser.add_argument("--profile", help="Select one profile; run/tick otherwise process all profiles")
     parser.add_argument("--env-file", help="Explicit private literal KEY=value file; no shell expansion")
     sub = parser.add_subparsers(dest="command", required=True)
     initializer = sub.add_parser("init", help="Interactive reader setup; never installs schedules or sends mail")
+    initializer.add_argument("--agent-backend", choices=["codex", "claude", "host"], default="codex")
     initializer.add_argument("--recipient")
     initializer.add_argument("--topic", action="append", help="Repeat for multiple research directions")
     initializer.add_argument("--language")
@@ -130,13 +135,27 @@ def _main(argv=None):
     model_setup = sub.add_parser("configure-model", help="Choose provider/model and enter a hidden API key; save only after local confirmation; no network")
     model_setup.add_argument("--secrets-file", help="Private .env or .env.<name>; default .env next to config")
     model_setup.add_argument("--replace", action="store_true", help="Explicitly allow replacing this subscription model and slot; still asks before saving")
+    recover = sub.add_parser("agent-recover", help="Recover an interrupted task only after confirming all its agent/tool processes are stopped; never resets send claims")
+    recover.add_argument("job_id")
+    recover.add_argument("--agent-stopped", action="store_true")
+    export = sub.add_parser("agent-export", help="Export a durable research task for an existing host agent; no model/research/mail calls")
+    export.add_argument("--prepare-connector", action="store_true")
+    agent_tool = sub.add_parser("agent-tool", help="Source, evidence, validation, literature and outbox tools called by the research agent")
+    agent_tool.add_argument("job_id")
+    agent_tool.add_argument("action", choices=["status", "search", "fetch", "ingest", "validate", "finalize", "library"])
+    agent_tool.add_argument("--source", choices=["crossref", "europepmc", "arxiv"])
+    agent_tool.add_argument("--topic", dest="topic_id")
+    agent_tool.add_argument("--query")
+    agent_tool.add_argument("--url")
+    agent_tool.add_argument("--input", dest="input_path")
     sub.add_parser("validate", help="Validate profiles, print readiness and next scheduled times without network")
     preview = sub.add_parser("preview", help="Generate a clearly labeled synthetic offline demo; no network/state/mail")
     preview.add_argument("--language", help="Override demo language")
-    for command, help_ in (("run", "Retrieve and compose now"), ("tick", "Run only due profiles, once per local day when sending"), ("schedule", "Foreground minute scheduler; keep process alive, Ctrl-C to stop")):
+    for command, help_ in (("run", "Launch configured research workflow now"), ("tick", "Run only due profiles, once per local day when sending"), ("schedule", "Foreground minute scheduler; keep process alive, Ctrl-C to stop")):
         runner = sub.add_parser(command, help=help_ + "; dry-run by default")
+        runner.add_argument("--prepare-connector", action="store_true", help="Prepare an immutable connector envelope; no mail is sent; tick/schedule preparation requires agent mode")
         if command == "run":
-            runner.add_argument("--prepare-connector", action="store_true", help="Run the real pipeline and freeze a connector envelope; no mail is sent")
+            runner.add_argument("--retry-agent", action="store_true", help="Explicit retry of a blocked agent job; never retries an active job or uncertain send")
         runner.add_argument("--send", action="store_true", help="Explicit delivery; still requires mail.enabled=true and SMTP configuration")
     begin = sub.add_parser("begin-send", help="Claim an immutable pipeline connector outbox before one authorized external mail call")
     begin.add_argument("digest_id")
@@ -163,6 +182,18 @@ def _main(argv=None):
             from .configure_model import configure_model
             return _report(configure_model(args))
         configs = _select(load_configs(args.config), args.profile)
+        if args.command in ("agent-export", "agent-tool", "agent-recover"):
+            if len(configs) != 1:
+                raise ValueError("Select exactly one profile with --profile for agent commands")
+            from .agent_jobs import create_job, tool, recover_job
+            if args.command == "agent-recover":
+                return _report(recover_job(configs[0], args.job_id, args.agent_stopped))
+            if args.command == "agent-export":
+                return _report(create_job(configs[0], delivery="connector" if args.prepare_connector else "dry_run"))
+            if args.action in ("ingest", "validate", "finalize") and not args.input_path:
+                raise ValueError("This agent action requires --input")
+            return _report(tool(configs[0], args.job_id, args.action, source=args.source,
+                                topic_id=args.topic_id, query=args.query, url=args.url, input_path=args.input_path))
         if args.command in ("begin-send", "confirm-sent"):
             if len(configs) != 1:
                 raise ValueError("Select exactly one profile with --profile for connector commands")
@@ -170,21 +201,21 @@ def _main(argv=None):
             result = begin_send(configs[0], args.digest_id) if args.command == "begin-send" else confirm_sent(configs[0], args.digest_id, read_json(args.receipt))
             return _report(result)
         if args.command == "validate":
-            return _report([{"status": "valid", "profile_id": c["profile_id"], "recipient": c["recipient"], "language": c["language"], "timezone": c["timezone"], "next_run": next_run(c), "mail_enabled": c["mail"]["enabled"], "llm_enabled": c["llm"]["enabled"], "model_backend": c["llm"].get("backend", "api"), **model_readiness(c), "missing_environment_variables": [v for section in ("mail", "llm") if c[section]["enabled"] and (section != "llm" or c["llm"].get("backend", "api") == "api") for k, v in c[section].items() if k.endswith("_env") and not os.environ.get(v)], "schedule_installed": False} for c in configs])
+            return _report([{"status": "valid", "profile_id": c["profile_id"], "recipient": c["recipient"], "language": c["language"], "timezone": c["timezone"], "next_run": next_run(c), "mail_enabled": c["mail"]["enabled"], "llm_enabled": c["llm"]["enabled"], "workflow": c["workflow"]["mode"], "model_backend": c["agent"]["backend"] if is_agent(c) else c["llm"].get("backend", "api"), **model_readiness(c), "missing_environment_variables": [v for section in ("mail", "llm") if c[section]["enabled"] and (section != "llm" or not is_agent(c) and c["llm"].get("backend", "api") == "api") for k, v in c[section].items() if k.endswith("_env") and not os.environ.get(v)], "schedule_installed": False} for c in configs])
         if args.command == "preview":
             from .demo import preview
             return _report([preview(c, args.language) for c in configs])
-        if args.command == "run" and args.prepare_connector:
+        if args.command in ("run", "tick", "schedule") and args.prepare_connector:
             if args.send:
                 raise ValueError("Choose either --send (SMTP) or --prepare-connector, not both")
-            if len(configs) != 1:
-                raise ValueError("Select exactly one profile with --profile for connector preparation")
-            return _report(run(configs[0], prepare_connector=True))
+            if args.command != "run" and any(not is_agent(c) for c in configs):
+                raise ValueError("Scheduled connector preparation requires agent mode; standalone supports run only")
         if args.command in ("run", "tick"):
-            return _report(_many(configs, args.command, args.send))
+            return _report(_many(configs, args.command, args.send, prepare_connector=args.prepare_connector,
+                                 retry_agent=getattr(args, "retry_agent", False)))
         if args.command == "schedule":
             for config in configs:
-                require_llm(config)
+                require_agent(config) if is_agent(config) else require_llm(config)
             previews = set()
             while True:
                 # Re-read non-secret reader settings without restarting the service.
@@ -211,14 +242,14 @@ def _main(argv=None):
                     if not args.send:
                         previews.add(key)
                 if due:
-                    _report(_many(due, "tick", args.send, now))
+                    _report(_many(due, "tick", args.send, now, prepare_connector=args.prepare_connector))
                 previews = {k for k in previews if (now.date() - k[1]).days < 2}
                 time.sleep(60)
         if args.command in ("send", "resolve", "library-export") and len(configs) != 1:
             raise ValueError("Select exactly one profile with --profile for send/resolve")
         results = []
         for config in configs:
-            if args.command == "send":
+            if args.command == "send" and not is_agent(config):
                 require_llm(config)
             state = State(config["state_path"], scope=state_scope(config))
             try:

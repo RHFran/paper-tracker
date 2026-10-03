@@ -1,116 +1,139 @@
-# Model backends and connector delivery
+# Agent workflows, standalone backends and connector delivery
 
-[Home](../README.md) · [Platform setup](platform-setup.md) · [User guide](user-guide.md) · [中文要点](#中文要点)
+[Home](../README.md) · [Agent tool contract](agent-workflow.md) · [Platform setup](platform-setup.md) · [User guide](user-guide.md) · [中文要点](#中文要点)
 
-Smart Paper Tracker owns the research pipeline: source retrieval, query filters,
-evidence collection, model analysis, deduplication, rendering, scheduling and the
-local delivery ledger. A coding agent can configure and run it. The model backend
-is a program setting; the main workflow does not import research written manually
-by the host agent.
+**Agent-led research is the primary workflow.** The agent chooses its searches,
+reads evidence, assesses relevance and synthesizes a digest. Super Paper radar
+provides retrieval and evidence tools, deterministic result validation,
+deduplication, rendering, the saved literature index, scheduling and a delivery
+ledger. The agent is an active researcher with its normal tools, not just a
+structured-output model embedded in a fixed retrieval pipeline.
 
-## Choose one model backend per profile
+## Choose the workflow explicitly
 
-| `llm.backend` | What the program calls | What must already be available |
-|---|---|---|
-| `codex` | Codex CLI non-interactive structured output | Installed `codex`, a usable login, and allowed model/account usage under the execution user |
-| `claude` | Claude Code CLI print mode with structured output | Installed `claude`, a usable login, and allowed model/account usage under the execution user |
-| `api` | HTTPS OpenAI-compatible Chat Completions | Provider endpoint, model ID and API key references |
-
-`api` remains the default when `backend` is omitted, so existing API
-configurations keep their behavior. Set `llm.enabled` to `true` for any real
-backend. Offline synthetic `preview` needs none of them.
-
-For CLI mode, run setup with `--skip-model` (`-SkipModel` in PowerShell) to skip
-the separate API wizard. Edit the `llm` object in your private configuration:
+New `init` and example configurations use `workflow.mode: "agent"`. Configure the
+agent at the root or per profile:
 
 ```json
 {
-  "enabled": true,
-  "backend": "codex",
-  "cli_executable": "codex",
-  "cli_model": "",
-  "cli_timeout_seconds": 180,
-  "plan_queries": true,
-  "screen_candidates": true,
-  "max_screen_candidates": 50
+  "workflow": {"mode": "agent"},
+  "agent": {
+    "backend": "codex",
+    "executable": "",
+    "model": "",
+    "reasoning_effort": "",
+    "timeout_seconds": 1800
+  }
 }
 ```
 
-Use `"claude"` for both `backend` and `cli_executable` when selecting Claude Code.
-The executable is a single command name or path, not a shell command with flags.
-Omitting it selects `codex` or `claude` automatically. An empty `cli_model` uses
-the isolated CLI default, rather than a model from its user configuration; otherwise supply a model your account can use. The adapters exclude user/project customizations for this model-only invocation while preserving managed security requirements and CLI authentication.
-The timeout defaults to 180 seconds and cannot exceed 1800 seconds. It bounds
-an individual CLI invocation, not necessarily a complete multi-paper run.
+| `agent.backend` | Who completes the research job | Prerequisites |
+|---|---|---|
+| `codex` | A full Codex CLI agent | Installed CLI and a usable login under the execution user |
+| `claude` | A full Claude Code CLI agent | Installed CLI and a usable login under the execution user |
+| `host` | The current authorized host agent, using an exported task and contract | Access to this checkout, its tools and durable job files |
 
-Profiles can choose different backends/models. Existing evidence, language and
-paper-selection settings still apply. Do not put passwords, login tokens or API
-keys in JSON, executable paths or command arguments.
+`run`, due `tick`, and `schedule` dispatch agent jobs in this mode. The CLI can
+use tools under its normal permissions and security controls. This project does
+not pass permission-bypass flags, disable its research tools, copy its login
+credentials or translate a chat subscription into an API key. An empty `model`
+uses the agent's configured default. An empty `executable` selects `codex` or
+`claude`; an explicit value must be a single command name or executable path,
+not a shell command with flags. `timeout_seconds` defaults to 1800 for the whole
+agent invocation. `reasoning_effort` is optional; empty inherits the agent's
+default, while a supported explicit value is passed through without an
+application-selected fallback. Choose the exact account-available model and
+supported effort, rather than guessing a newest model name. Requested values are
+recorded in the job contract/audit. Host mode cannot change the model/effort of an
+already-running host; select them there before starting. See
+[model and effort selection](agent-workflow.md#1-select-the-agent-and-execution-host).
 
-`plan_queries: true` asks the selected model to help formulate retrieval queries
-for the topics; the program executes those queries. `screen_candidates: true`
-adds model-assisted relevance screening before detailed analysis, bounded by
-`max_screen_candidates` (default 50, maximum 200). Both switches default to `false` for
-backward compatibility. Turn them on for the fuller model-assisted workflow;
-they add model usage and do not guarantee exhaustive literature coverage.
+The host backend returns `awaiting_agent`, with task/contract files the host must
+read and complete. It does not silently fall back to standalone model calls.
+[The complete agent workflow](agent-workflow.md) documents exported jobs and
+`agent-tool` search, fetch, ingest, validate and finalize operations.
 
-### CLI behavior and official references
+**Upgrade compatibility:** an existing config with no `workflow` remains
+`standalone`. To change it, explicitly add `workflow.mode: "agent"` and choose
+an agent. Merely configuring `llm.backend` does not select agent-led execution.
 
-- **Codex:** the adapter uses `codex exec` with a JSON output schema, a read-only
-  sandbox and an ephemeral session. It reuses authentication managed by the
-  installed CLI. See [Codex non-interactive mode](https://developers.openai.com/codex/noninteractive/).
-- **Claude Code:** the adapter uses `claude -p` with JSON output, a JSON schema
-  and tools disabled. See [Claude Code programmatic usage](https://code.claude.com/docs/en/headless).
+## Readiness and costs
 
-These are model calls made by the program. They do not ask the model to run the
-literature pipeline, send mail or install a scheduler. CLI authentication stays
-with the CLI; this project does not copy its credentials into `.env` or convert
-a chat subscription into an API key. Review the installed CLI's own configuration
-and provider data policies before using it with private topics or evidence.
-Query planning sends topic settings to the selected model; screening sends
-candidate metadata/evidence, and detailed analysis sends selected paper evidence.
+A working agent chat does not prove that its CLI is installed and authenticated
+on the execution machine. Before a live run:
 
-### Readiness and costs
-
-A working interactive agent chat does not prove that the needed CLI is installed
-and authenticated on the execution machine. Before a live run:
-
-1. Install/sign in through the chosen CLI's official workflow, under the same OS
-   user that will execute the program. This project does not perform that login.
-2. Check that the command resolves in the scheduler's environment. If its `PATH`
-   differs from your terminal, configure the absolute `cli_executable` path.
-3. Run the local configuration check and an offline preview first. `validate`
-   does not establish account credit, authentication validity, model availability
-   or end-to-end compatibility with your installed CLI version.
-4. Approve and review one real dry run. It retrieves real sources and can make
-   multiple model requests. Login expiration, rate limits, usage caps, unsupported
-   models, timeouts and invalid structured output stop successful analysis.
-5. Test under the actual scheduler account before relying on unattended operation.
-   A sleeping laptop, expired login or stopped worker cannot deliver on time.
+1. Install/sign in through the CLI's supported flow under the same OS user that
+   will execute jobs. This project does not perform login or copy credentials.
+2. Check that the command resolves in the scheduler environment; use an absolute
+   `agent.executable` path if needed. Keep the normal security/approval policy.
+   A job blocked by that policy needs an authorized resolution, not a bypass.
+3. Run `validate` and the synthetic `preview`. Neither proves live login, credit,
+   model availability, tool access or compatibility with the installed CLI.
+4. Approve and inspect one real `run` without email. It can use multiple searches,
+   evidence reads and model turns. Failed validation is not a completed digest.
+5. Test under the actual scheduler account before unattended use. Keep the machine
+   awake, the login usable and the job/state directories on durable private disk.
 
 ```sh
 bash scripts/run.sh --config config.json validate
 bash scripts/run.sh --config config.json preview
-# Live retrieval and model usage; no email:
+# Live agent research and account usage; no email:
 bash scripts/run.sh --config config.json run
 ```
 
-CLI mode needs **no separate model API key when the CLI has a supported, usable
-login**. It is not a promise of free or unlimited inference. CLI/account plan
-rules, token usage, quotas and possible charges still apply; an API-authenticated
-CLI may use API billing. API mode uses the selected API provider's billing.
-Costs depend on the model, paper count, evidence length and number of calls.
-Real dry runs and connector preparation also consume model usage. Setup,
-validation and synthetic preview do not call the model.
+A supported, usable CLI login needs **no separate model API key**. It does not
+promise free or unlimited usage. Plan rules, token usage, quotas and possible
+charges apply; an API-authenticated CLI may use API billing. Host-agent usage
+follows its own provider/account. Real dry runs and connector preparation can
+consume usage. Setup, validation, job export and synthetic preview do not call
+the model. A failed job is not automatically retried as a new paid invocation
+each minute; review it before explicitly allowing `--retry-agent`.
 
-### Keep the independent API workflow
+## Standalone compatibility mode
 
-For `llm.backend: "api"`, use the existing local `configure-model` wizard and
-its hidden-key entry. It configures a compatible HTTPS endpoint, model and
-independent environment-variable slot per subscription. Load the private file
-explicitly with `--env-file`, or use `--prompt-secrets` for process-only input.
-See [API provider setup](platform-setup.md#3-configure-your-provider-model-and-key).
-The API wizard is an API setup path; it does not sign in to Codex or Claude Code.
+`workflow.mode: "standalone"` retains the fixed retrieve/filter/analyze pipeline.
+This is an optional independent deployment path and the unchanged default for old
+configs lacking `workflow`. It uses `llm.enabled: true` and one `llm.backend`:
+
+| `llm.backend` | Program-controlled model call | Prerequisites |
+|---|---|---|
+| `api` (default) | HTTPS OpenAI-compatible Chat Completions | Endpoint, model and API-key environment references |
+| `codex` | Model-only Codex CLI structured output | Installed CLI and usable login |
+| `claude` | Model-only Claude Code CLI structured output | Installed CLI and usable login |
+
+```json
+{
+  "workflow": {"mode": "standalone"},
+  "llm": {
+    "enabled": true,
+    "backend": "api",
+    "base_url_env": "LITERATURE_LLM_BASE_URL",
+    "api_key_env": "LITERATURE_LLM_API_KEY",
+    "model_env": "LITERATURE_LLM_MODEL"
+  }
+}
+```
+
+Use the local `configure-model` wizard for the API endpoint, model and hidden-key
+entry; setup's `--api` option chooses this path. It is not a CLI login wizard.
+Load saved private values explicitly with `--env-file`, or use `--prompt-secrets`
+for process-only input. See [API setup](platform-setup.md#3-configure-your-provider-model-and-key).
+Never put API keys, passwords or tokens in JSON or command arguments.
+
+For a standalone model-only CLI call, `llm.cli_executable` optionally selects the
+command, `llm.cli_model` selects a model, and `llm.cli_timeout_seconds` defaults
+to 180 seconds (maximum 1800) per model invocation. Empty `cli_model` uses the
+isolated invocation's effective default rather than the user-configured model.
+These legacy adapters deliberately constrain the call to structured output;
+they are different from the full agent workflow above. `llm.plan_queries` and
+`llm.screen_candidates` add model-assisted query planning and screening to the
+fixed pipeline. Both default to false; `max_screen_candidates` defaults to 50
+(maximum 200). They do not control agent-led research.
+
+Profiles may select different workflows, agents or standalone models. Missing or
+failed standalone analysis stops a real digest; metadata-only output is not a
+successful research report. Both workflows send research topics/evidence to the
+chosen agent or model provider, according to that provider's own data policies.
 
 ## Saved literature and coverage
 
@@ -137,8 +160,8 @@ Model screening also has a disclosed candidate cap.
 
 ## Choose delivery separately
 
-Model choice and email choice are independent. Any supported model backend can
-produce a report for either delivery path:
+Research workflow and email transport are independent. Agent-led and standalone
+research can produce a report for either delivery path:
 
 - **SMTP:** configure `mail.enabled` and your authorized sender, then use
   `run --send`, `tick --send` or `schedule --send`. Existing SMTP state and
@@ -154,15 +177,17 @@ host or scheduler. Review recipients and the actual message before approving a
 send. Do not copy the connector's credentials into the program.
 
 Connector preparation ignores the SMTP `mail.enabled` switch and does not need
-SMTP credentials. Only `run --prepare-connector` is supported for this path:
-the host must orchestrate and schedule the external-tool lifecycle. Do not use
-`tick --send` or `schedule --send` expecting them to invoke a host connector;
-those are the program's existing SMTP send path.
+SMTP credentials. Agent mode supports `run --prepare-connector`,
+`tick --prepare-connector` and `schedule --prepare-connector`; standalone mode
+supports preparation with `run` only. A `host` job must be finalized before an
+envelope exists. The host separately orchestrates/schedules the external-tool
+lifecycle. `tick --send` and `schedule --send` remain SMTP, not connector calls.
 
 ### Connector send lifecycle
 
 ```sh
-# Full real research pipeline, then prepare the immutable message; no mail sent:
+# Run research, or safely promote a completed dry run; prepare but do not send:
+# Host backend returns a task first; finalize it before claiming the envelope.
 bash scripts/run.sh --config config.json run --prepare-connector
 # Use the exact digest ID returned by preparation:
 bash scripts/run.sh --config config.json begin-send DIGEST_ID
@@ -221,26 +246,29 @@ Reconcile provider records and preserve the ledger; do not delete state to force
 
 ## 中文要点
 
-- 程序自己负责检索、筛选、证据收集、分析、去重、排版、调度和投递记录。Agent 帮助
-  安装与操作；无需先由宿主 Agent 手写研究报告再导入。
-- `llm.backend` 可选 `codex`、`claude`、`api`；省略时仍为 `api`，兼容旧配置。
-  所有真实后端都要设置 `llm.enabled: true`。离线 `preview` 不需要模型。
-- CLI 模式安装时用 `--skip-model` / `-SkipModel` 跳过 API 向导。运行机器上须已安装
-  对应 CLI，并以执行程序的系统用户登录。`cli_executable` 是一个命令名或路径，
-  不是拼接参数的 shell 命令；默认按后端选择 `codex` / `claude`。
-- `cli_model` 留空使用隔离调用的 CLI 默认模型（不读取用户配置模型）；`cli_timeout_seconds` 默认 180 秒，最大 1800 秒，
-  针对每次调用。CLI 模式不要求第二把 API key，仍消耗账户用量并受费用和额度限制。
-- `plan_queries: true` 启用模型辅助检索查询规划；`screen_candidates: true` 启用相关性
-  筛选，`max_screen_candidates` 默认 50。两个开关为兼容旧配置默认关闭，启用会增加调用。
-- 项目不复制 CLI 登录凭据。`validate` 不能证明登录有效、额度充足或 CLI 版本兼容；
-  无人值守前应在实际调度用户下测试。请先确认费用再做真实运行。
-- 独立 API 继续使用 `configure-model` 本地隐藏输入向导，随后明确加载 `--env-file`。
-  SMTP 发送与 `schedule --send` / `tick --send` 保持原有用法。
+- 新建配置以 **Agent 主导研究** 为主：Agent 自主规划检索、阅读证据、筛选和综合，程序
+  提供检索、证据校验、去重、排版、持久文献库、调度与投递记录。
+- 设置 `workflow.mode: "agent"`，根层或档案中的 `agent.backend` 可选 `codex`、
+  `claude`、`host`；`executable` 和 `model` 留空使用后端默认，`timeout_seconds`
+  默认 1800 秒，限制完整 Agent 调用。保留正常工具与安全权限，不绕过审批、不复制凭据。
+- `run`、到期的 `tick` 与 `schedule` 启动完整研究任务。`host` 返回 `awaiting_agent`，
+  由宿主读取持久任务契约并调用程序工具完成；任务导出不等于已完成研究。
+  [详细工具契约](agent-workflow.md)覆盖检索、抓取、导入、校验和完成步骤。
+- 缺少 `workflow` 的旧配置继续使用 `standalone`，不会静默迁移。独立固定流程仍支持
+  `llm.backend: api/codex/claude`；`llm` 的查询规划与筛选开关只属于这个兼容模式。
+- 新安装默认不运行 API 向导；选择独立 API 时用 `--api` 或本地 `configure-model`。
+  密钥由用户在本地隐藏输入，不放进聊天、JSON 或命令参数。
+- 已登录 CLI 不需要第二把模型 API key，但真实 Agent/API 运行（包括 dry-run）仍消耗
+  账户用量并受费用、额度限制。`validate` 和合成预览不能证明真实登录或兼容性。
+- 失败任务不会每分钟自动重新付费调用；检查原因后，用明确的 `--retry-agent` 允许重试。
+- 研究方式与邮件方式分开选择。SMTP 的 `run --send`、`schedule --send`、`tick --send`
+  保持支持；Agent 的工具完成步骤本身不发送邮件。
 - 连接邮件工具的流程是 `run --prepare-connector` → `begin-send DIGEST_ID` →
-  获授权的外部邮件工具发送一次 → `confirm-sent DIGEST_ID --receipt receipt.json`。
-  程序准备的是不可变消息；准备成功、开始发送都不等于已经发出。只有确认的服务商回执
-  才能记为发送成功。超时或状态不明先查服务商记录，不要盲目重发或编造回执。
-- 连接工具准备忽略 SMTP 的 `mail.enabled`，不需要 SMTP 凭据。目前仅 `run` 支持
-  `--prepare-connector`；宿主负责安排外部工具流程，`tick` / `schedule` 的发送仍使用 SMTP。
+  获授权的外部工具发送一次 → `confirm-sent DIGEST_ID --receipt receipt.json`。
+  对 `host` 模式，要先完成返回的研究任务。消息准备或领取均不等于成功发送。
+- 准备连接工具消息不需要 SMTP 凭据。Agent 模式可用 `tick --prepare-connector` 或
+  `schedule --prepare-connector`；standalone 仅支持 `run` 准备。宿主仍负责实际邮件
+  工具调用与回执，内置调度不会自动调用宿主邮件工具。超时或状态不明时先查提供商记录，
+  不盲目重发、不编造回执。
 
 [中文安装指南](platform-setup_中文.md) · [中文完整指南](user-guide_中文.md)

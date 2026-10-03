@@ -1,14 +1,14 @@
 # EXAMPLE ONLY. Review paths and --send before installing or enabling.
 [Unit]
-Description=Check due Smart Paper Tracker profiles
+Description=Check due Super Paper radar profiles
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=oneshot
 User=YOUR_USER
-WorkingDirectory=/absolute/path/smart-paper-tracker
-ExecStart=/absolute/path/smart-paper-tracker/.venv/bin/python scripts/launch.py --env-file /absolute/private/path/.env --config /absolute/private/path/config.json tick --send
+WorkingDirectory=/absolute/path/super-paper-radar
+ExecStart=/absolute/path/super-paper-radar/.venv/bin/python scripts/launch.py --env-file /absolute/private/path/.env --config /absolute/private/path/config.json tick --send
 # State/output paths in config must be durable and writable by YOUR_USER.
 UMask=0077
 NoNewPrivileges=true

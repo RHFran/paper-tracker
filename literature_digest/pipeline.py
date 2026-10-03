@@ -69,11 +69,17 @@ def digest_id(config, local_day):
 
 def config_fingerprint(config):
     ignored = {"state_path", "output_dir", "mail", "contact_email", "http_timeout_seconds", "http_retries", "schedule"}
-    return hashlib.sha256(json.dumps({"reference_export_version": EXPORT_VERSION, "config": {k: v for k, v in config.items() if k not in ignored}}, sort_keys=True).encode()).hexdigest()
+    if config.get("workflow", {}).get("mode", "standalone") == "standalone":
+        ignored |= {"workflow", "agent"}
+    normalized = {k: v for k, v in config.items() if k not in ignored}
+    if "agent" in normalized:
+        normalized["agent"] = {k: v for k, v in normalized["agent"].items() if not (k == "reasoning_effort" and not v)}
+    return hashlib.sha256(json.dumps({"reference_export_version": EXPORT_VERSION, "config": normalized}, sort_keys=True).encode()).hexdigest()
 
 
 def verify_payload_config(payload, config):
-    require_llm(config)
+    if config.get("workflow", {}).get("mode") != "agent":
+        require_llm(config)
     require_analysis_payload(payload)
     if payload.get("transport") == "connector":
         raise ValueError("Connector outbox cannot be sent by SMTP; use its explicit transport workflow")
@@ -136,6 +142,8 @@ def _save_library(config, state, papers, identifier, paths):
 
 
 def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=send_smtp, prepare_connector=False):
+    if config.get("workflow", {}).get("mode") == "agent":
+        raise ValueError("Agent mode must use the agent job runner, not the standalone pipeline")
     if send and prepare_connector:
         raise ValueError("Cannot send SMTP and prepare connector simultaneously")
     # Reject incomplete setup before retrieval, model charges, report or state writes.

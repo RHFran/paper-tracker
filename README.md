@@ -1,7 +1,7 @@
 <p align="center">
-  <img src="docs/assets/logo.svg" width="104" height="104" alt="Smart Paper Tracker logo: a research paper with a tracking signal">
+  <img src="docs/assets/logo.svg" width="440" alt="Super Paper radar">
 </p>
-<h1 align="center">Smart Paper Tracker</h1>
+<h1 align="center">Super Paper radar</h1>
 
 <a id="english"></a>
 
@@ -12,13 +12,19 @@ that matters most and for making more important judgments.
 
 **Your research topics → evidence-grounded AI digests → your inbox, on your schedule.**
 
-Let your agent help set up the program. The program retrieves, filters, analyzes,
-deduplicates and schedules your research digests. Choose an already-installed,
-logged-in **Codex or Claude Code CLI**, or a compatible **model API**. CLI mode
-does not require a second API key; account usage, token costs and limits still
-apply. The offline demo makes no model calls.
+**Recommended: use with Codex dot / 推荐搭配 Codex 的 dot 使用。**
+[Use dot as the host agent](docs/agent-workflow.md#using-with-codex-dot).
 
-[English](#english) · [中文](#chinese) · [HTML demo](https://rhfran.github.io/smart-paper-tracker/?lang=en) · [Setup guide](docs/platform-setup.md)
+**An agent leads the research; the program provides reliable tools and records.**
+An already-installed, signed-in **Codex or Claude Code** agent plans searches,
+reads evidence, screens papers and writes the digest. It calls the program for
+retrieval, evidence validation, deduplication, rendering and the durable literature
+library. An existing **host agent** can use the same job contract. No separate
+model API key is needed for a usable agent login; account usage, costs and limits
+still apply. A standalone API/model-only pipeline remains optional. The offline
+demo makes no model calls.
+
+[English](#english) · [中文](#chinese) · [HTML demo](https://rhfran.github.io/super-paper-radar/?lang=en) · [Setup guide](docs/platform-setup.md)
 
 ## What you get
 
@@ -41,7 +47,7 @@ in one profile for a combined digest. [Ready-to-edit calendar example](config.ca
 
 ## See the result
 
-[Open the rendered HTML demo](https://rhfran.github.io/smart-paper-tracker/?lang=en) · [中文演示](https://rhfran.github.io/smart-paper-tracker/) · [Demo files and walkthrough](examples/preview/README.md)
+[Open the rendered HTML demo](https://rhfran.github.io/super-paper-radar/?lang=en) · [中文演示](https://rhfran.github.io/super-paper-radar/) · [Demo files and walkthrough](examples/preview/README.md)
 
 The demo is clearly labeled synthetic: no real papers, model calls or email.
 Setup generates an HTML preview; open the file path it prints in your browser.
@@ -54,11 +60,12 @@ repository `.html` files as source.
 
 Give **Codex, Claude Code, ChatGPT or dot** this source repository and ask:
 
-> Install Smart Paper Tracker using its setup script. Configure my research
+> Install Super Paper radar using its setup script. Configure my research
 > topics, language and local schedule. Check whether Codex or Claude Code is
-> already installed and signed in on the execution machine, and let the program
-> use that CLI as its model backend; use a separate API only if I choose it.
-> The program should retrieve, filter, analyze and deduplicate the papers itself.
+> already installed and signed in on the execution machine. Use agent-led mode:
+> the agent should plan and carry out the research with the program's search,
+> evidence, validation and library tools. Use my host agent through the exported
+> job contract if I choose that route. Use standalone API mode only if I choose it.
 > Show the offline preview, explain account usage and costs before a real run,
 > and ask before sending email or starting a background scheduler. Use SMTP or
 > my authorized connected email tool according to my choice. Keep existing CLI and connector
@@ -66,10 +73,12 @@ Give **Codex, Claude Code, ChatGPT or dot** this source repository and ask:
 
 The agent needs access to a machine where it can read the source and run commands.
 With **Python 3.11+**, setup creates `.venv`, installs this checkout, preserves
-existing configuration and generates an offline preview. For a CLI backend, use
-`--skip-model` (`-SkipModel` on PowerShell) to skip the separate API wizard, then
-set `llm.backend`. [Agent and platform instructions](docs/platform-setup.md) ·
-[Model backends and connector delivery](docs/model-backends.md).
+existing configuration and generates an offline preview. New configurations use
+`workflow.mode: "agent"`; choose `agent.backend` as `codex`, `claude` or `host`.
+The independent API wizard is opt-in. Existing configurations without `workflow`
+keep the legacy standalone behavior until you explicitly change them.
+[Agent workflow and tool contract](docs/agent-workflow.md) ·
+[Agent and platform instructions](docs/platform-setup.md).
 
 <a id="manual-setup"></a>
 
@@ -78,60 +87,66 @@ set `llm.backend`. [Agent and platform instructions](docs/platform-setup.md) ·
 Download or clone this repository, open a terminal in its directory, then run:
 
 ```sh
-# Linux / macOS: install and configure reader settings without the API wizard
-bash scripts/setup.sh --skip-model
+# Linux / macOS: install and configure agent-led research
+bash scripts/setup.sh
 ```
 
 ```powershell
 # Windows PowerShell
-./scripts/setup.ps1 -SkipModel
+./scripts/setup.ps1
 ```
 
-If PowerShell blocks scripts, use `py -3 scripts/setup.py --skip-model`; no policy
+If PowerShell blocks scripts, use `py -3 scripts/setup.py`; no policy
 change is needed. Setup neither sends mail nor installs a scheduler.
 
-### Choose the model backend
+### Choose the research agent
 
-For an already-installed and signed-in Codex CLI, set this object in `config.json`
-(or in the chosen profile). Use `"claude"` for a signed-in Claude Code CLI:
+For an already-installed and signed-in Codex CLI, set these objects in
+`config.json` (or the chosen profile). Use `"claude"` for Claude Code, or `"host"`
+for an agent already working in the project:
 
 ```json
-"llm": {
-  "enabled": true,
+"workflow": {"mode": "agent"},
+"agent": {
   "backend": "codex",
-  "cli_model": "",
-  "cli_timeout_seconds": 180,
-  "plan_queries": true,
-  "screen_candidates": true,
-  "max_screen_candidates": 50
+  "executable": "",
+  "model": "",
+  "reasoning_effort": "",
+  "timeout_seconds": 1800
 }
 ```
 
-An empty `cli_model` uses the effective default of the isolated CLI invocation, without loading the user's configured model. Run under the same OS user
-that is signed in; a chat subscription alone does not install or authenticate a
-CLI on another machine. The program invokes the CLI for structured model output;
-you do not need to assemble or import a manually written research report.
+The CLI runs a complete research job with its normal tools and security controls.
+It decides which searches and evidence to pursue, then uses the program's tools to
+validate and finalize the result. Empty `model` uses the agent's configured default;
+empty `executable` selects the backend's command. Run under the signed-in OS user.
+A chat subscription alone does not authenticate a CLI on another machine.
+For a flagship model, check the account's available models and installed CLI
+support, then set its exact model ID and supported `reasoning_effort`. Empty
+values inherit defaults; explicit unsupported settings fail without an
+application-selected fallback. Host model/effort must be selected in the host.
 
 ```sh
-# Validate locally, then retrieve and analyze real papers without sending email
+# Check settings and view a synthetic preview without agent/model usage
 bash scripts/run.sh --config config.json validate
+bash scripts/run.sh --config config.json preview
+# Launch the agent's real research job; no email
 bash scripts/run.sh --config config.json run
 ```
 
-**Prefer an independent API?** Keep `llm.backend` as `"api"` (the default for
-existing configs) and use the local `configure-model` wizard for the provider,
-HTTPS endpoint, model and hidden key entry. OpenAI, DeepSeek, Qwen and other
-compatible services can be used. Saving a key to a private plaintext `.env`
-requires confirmation. [API setup and safe secret input](docs/platform-setup.md).
+With `agent.backend: "host"`, `run` returns an `awaiting_agent` job for the host to
+complete through the same documented tools. Exporting a job does not mean the
+research is complete. [Agent workflow and tool contract](docs/agent-workflow.md).
 
-```sh
-bash scripts/run.sh --config config.json configure-model
-bash scripts/run.sh --env-file .env --config config.json run
-```
+**Prefer a standalone API pipeline?** Explicitly choose
+`workflow.mode: "standalone"` and configure `llm.backend: "api"` with the local
+`configure-model` wizard. Existing configurations with no `workflow` retain this
+legacy pipeline. Its model-only Codex/Claude adapters also remain available.
+[Standalone backends and safe secret input](docs/model-backends.md#standalone-compatibility-mode).
 
-On Windows, replace `bash scripts/run.sh` with `./scripts/run.ps1`. Missing or
-failed model analysis stops the digest; metadata-only results are not a successful
-research report. CLI/API live runs consume account usage and may incur charges.
+On Windows, replace `bash scripts/run.sh` with `./scripts/run.ps1`. Agent and API
+live runs consume account usage and may incur charges, even without email.
+Missing evidence or failed validation blocks a finished research report.
 
 ### Choose delivery and scheduling
 
@@ -140,11 +155,16 @@ Review a real report first. For direct SMTP delivery, configure SMTP, then use
 calling `tick --send`. For an authorized connected email tool, use
 `run --prepare-connector`, claim the immutable message with `begin-send`, send it
 once through that tool, then record the confirmed provider receipt with
-`confirm-sent`. Preparation alone sends no email. Only `run` prepares connector messages; the host
-must arrange its recurring connector calls. [Backend and delivery workflow](docs/model-backends.md).
+`confirm-sent`. Preparation alone sends no email. Agent mode also supports
+`tick --prepare-connector` and `schedule --prepare-connector`; the host still
+handles the actual connector call and receipt. Standalone preparation uses `run`.
+[Backend and delivery workflow](docs/model-backends.md).
 
 Keep the chosen execution machine online and retain its state directory.
 [Full configuration and scheduling guide](docs/user-guide.md).
+
+The Python package and commands `paper-tracker` / `literature-digest` retain their
+existing names for compatibility.
 
 ## More detail
 
@@ -166,9 +186,9 @@ Provider acceptance does not guarantee inbox delivery.
 <a id="中文说明"></a>
 
 <p align="center">
-  <img src="docs/assets/logo.svg" width="104" height="104" alt="Smart Paper Tracker logo: a research paper with a tracking signal">
+  <img src="docs/assets/logo.svg" width="440" alt="Super Paper radar">
 </p>
-<h1 align="center">Smart Paper Tracker</h1>
+<h1 align="center">Super Paper radar</h1>
 
 <a id="chinese"></a>
 
@@ -176,12 +196,16 @@ Provider acceptance does not guarantee inbox delivery.
 
 **你的研究方向 → 有证据的 AI 文献简报 → 按你的计划送达邮箱。**
 
-让 Agent 帮你安装，程序自己检索、筛选、分析、去重和调度文献简报。模型后端可选
-已安装并登录的 **Codex / Claude Code CLI**，也可选兼容的 **模型 API**。
-CLI 模式不需要另配一把 API key，但仍消耗账户用量，受 token 费用和额度限制。
-离线演示不调用模型。
+**推荐搭配 Codex 的 dot 使用 / Recommended: use with Codex dot。**
+[使用 dot 作为宿主 Agent](docs/agent-workflow.md#using-with-codex-dot)。
 
-[English](README.md#english) · [中文](#chinese) · [HTML 演示](https://rhfran.github.io/smart-paper-tracker/) · [安装指南](docs/platform-setup_中文.md)
+**Agent 主导研究，程序提供可靠的工具和记录。** 已安装并登录的 **Codex / Claude Code**
+Agent 自主规划检索、阅读证据、筛选论文并组织简报，调用程序完成检索、证据校验、去重、
+排版和持久文献库记录。已有的**宿主 Agent** 也可使用同一套任务契约。
+可用的 Agent 登录不要求第二把模型 API key，但仍消耗账户用量，受费用和额度限制。
+独立 API／仅模型调用的固定流程保留为可选模式。离线演示不调用模型。
+
+[English](README.md#english) · [中文](#chinese) · [HTML 演示](https://rhfran.github.io/super-paper-radar/) · [安装指南](docs/platform-setup_中文.md)
 
 ## 你会得到什么
 
@@ -201,7 +225,7 @@ CLI 模式不需要另配一把 API key，但仍消耗账户用量，受 token �
 
 ## 先看效果
 
-[直接打开 HTML 演示](https://rhfran.github.io/smart-paper-tracker/) · [English demo](https://rhfran.github.io/smart-paper-tracker/?lang=en) · [演示文件与说明](examples/preview/README.md)
+[直接打开 HTML 演示](https://rhfran.github.io/super-paper-radar/) · [English demo](https://rhfran.github.io/super-paper-radar/?lang=en) · [演示文件与说明](examples/preview/README.md)
 
 演示明确标注为合成内容，不检索真实论文、不调用模型、不发邮件。
 安装会生成 HTML 预览，用浏览器打开命令输出中的文件路径即可查看。
@@ -213,17 +237,19 @@ CLI 模式不需要另配一把 API key，但仍消耗账户用量，受 token �
 
 把这份源码项目交给 **Codex、Claude Code、ChatGPT 或 dot**，告诉它：
 
-> 使用项目自带的脚本安装 Smart Paper Tracker，配置我的研究主题、语言和当地运行计划。
-> 检查执行机器上是否已经安装并登录 Codex 或 Claude Code，让程序调用这个 CLI 作为模型
-> 后端；只有我选择独立 API 时才另配 API。程序自己负责检索、筛选、分析和去重，
-> 不要以人工写好研究报告再导入作为主要流程。先展示离线演示，真实调用前说明账户用量
-> 和费用；发邮件或启动后台定时任务前先让我确认。按我的选择使用 SMTP 或获授权的
+> 使用项目自带的脚本安装 Super Paper radar，配置我的研究主题、语言和当地运行计划。
+> 检查执行机器上是否已经安装并登录 Codex 或 Claude Code。使用 Agent 主导模式，
+> 由 Agent 自主规划并调用程序的检索、证据、校验和文献库工具完成研究；若我选择宿主
+> Agent，就使用导出的任务契约。只有我选择独立 API 时才使用 standalone 模式。
+> 先展示离线演示，真实调用前说明账户用量和费用；发邮件或启动后台定时任务前先让我确认。
+> 按我的选择使用 SMTP 或获授权的
 > 已连接邮件工具。已有 CLI 和邮件工具的凭据留在原来的服务中，不要复制进项目。
 
 Agent 需要能读取源码并执行命令的电脑环境。安装好 **Python 3.11+** 后，脚本会创建
-`.venv`、安装当前项目、保留已有配置并生成离线演示。选 CLI 后端时，用 `--skip-model`
-（PowerShell 用 `-SkipModel`）跳过独立 API 向导，然后设置 `llm.backend`。
-[Agent 与分平台操作说明](docs/platform-setup_中文.md) · [模型后端与邮件工具流程](docs/model-backends.md)。
+`.venv`、安装当前项目、保留已有配置并生成离线演示。新配置使用 `workflow.mode: "agent"`，
+`agent.backend` 可选 `codex`、`claude` 或 `host`；独立 API 向导需主动选择。
+未填写 `workflow` 的旧配置保持原有 standalone 流程，不会静默迁移。
+[Agent 工作流与工具契约](docs/agent-workflow.md) · [Agent 与分平台操作说明](docs/platform-setup_中文.md)。
 
 <a id="manual-setup-zh"></a>
 
@@ -232,57 +258,59 @@ Agent 需要能读取源码并执行命令的电脑环境。安装好 **Python 3
 下载或克隆项目，在项目目录打开终端，运行：
 
 ```sh
-# Linux / macOS：安装并设置读者信息，跳过独立 API 向导
-bash scripts/setup.sh --skip-model
+# Linux / macOS：安装并设置 Agent 主导的研究流程
+bash scripts/setup.sh
 ```
 
 ```powershell
 # Windows PowerShell
-./scripts/setup.ps1 -SkipModel
+./scripts/setup.ps1
 ```
 
-如果 PowerShell 阻止脚本运行，改用 `py -3 scripts/setup.py --skip-model`，不需要修改执行策略。
+如果 PowerShell 阻止脚本运行，改用 `py -3 scripts/setup.py`，不需要修改执行策略。
 安装脚本不会发送邮件，也不会安装定时服务。
 
-### 选择模型后端
+### 选择研究 Agent
 
-使用已安装并登录的 Codex CLI，在 `config.json` 或所选档案中设置以下对象；
-使用已登录的 Claude Code CLI 时，把后端改为 `"claude"`：
+使用已安装并登录的 Codex CLI，在 `config.json` 或所选档案中设置以下对象。
+Claude Code 使用 `"claude"`；由当前项目中的宿主 Agent 执行时使用 `"host"`：
 
 ```json
-"llm": {
-  "enabled": true,
+"workflow": {"mode": "agent"},
+"agent": {
   "backend": "codex",
-  "cli_model": "",
-  "cli_timeout_seconds": 180,
-  "plan_queries": true,
-  "screen_candidates": true,
-  "max_screen_candidates": 50
+  "executable": "",
+  "model": "",
+  "reasoning_effort": "",
+  "timeout_seconds": 1800
 }
 ```
 
-`cli_model` 留空使用隔离调用的有效 CLI 默认模型，不读取用户配置中的模型。执行程序的系统用户必须与登录 CLI 的用户一致；
-仅有聊天订阅，不代表另一台机器已经安装和登录 CLI。程序直接调用 CLI 获取结构化模型
-结果，不需要你或宿主 Agent 先手写一份研究报告再导入。
+CLI 执行完整研究任务，保留正常工具与安全控制。Agent 自主决定检索与证据阅读步骤，
+再调用程序工具校验和完成结果。`model` 留空使用 Agent 配置的默认模型；`executable`
+留空使用所选后端的命令。执行程序的系统用户须与 CLI 登录用户一致；聊天订阅本身
+不代表另一台机器已经安装和登录 CLI。若使用旗舰模型，请先检查当前账户和 CLI 支持，
+再填写准确模型 ID 与支持的 `reasoning_effort`。留空继承默认值；明确设置不受支持时
+失败，不由程序静默降级。Host 的模型与推理强度须在宿主侧先选定。
 
 ```sh
-# 本地校验后，检索和分析真实论文；不发邮件
+# 本地校验与离线合成预览，不消耗 Agent／模型用量
 bash scripts/run.sh --config config.json validate
+bash scripts/run.sh --config config.json preview
+# 启动 Agent 的真实研究任务；不发邮件
 bash scripts/run.sh --config config.json run
 ```
 
-**想用独立 API？** 使用 `llm.backend: "api"`（旧配置的默认值），运行本地
-`configure-model` 向导，选择服务商、HTTPS 接口、模型，并隐藏输入 API key。
-可接入 OpenAI、DeepSeek、Qwen 等兼容服务。明确确认后才把密钥保存到私有明文 `.env`。
-[API 配置与安全输入凭据的方法](docs/platform-setup_中文.md)。
+`agent.backend: "host"` 时，`run` 返回 `awaiting_agent` 任务，由宿主通过同一套工具完成。
+导出任务不等于完成研究。[Agent 工作流与工具契约](docs/agent-workflow.md)。
 
-```sh
-bash scripts/run.sh --config config.json configure-model
-bash scripts/run.sh --env-file .env --config config.json run
-```
+**想用独立 API 固定流程？** 明确设置 `workflow.mode: "standalone"`，通过本地
+`configure-model` 向导配置 `llm.backend: "api"`。未填写 `workflow` 的旧配置继续使用
+该兼容流程；旧的 Codex／Claude 仅模型调用后端也保留。
+[Standalone 后端与安全输入凭据](docs/model-backends.md#standalone-compatibility-mode)。
 
-Windows 将 `bash scripts/run.sh` 换成 `./scripts/run.ps1` 即可。模型缺失或分析失败时会
-停止简报，不会把纯元数据当作成功的研究报告。CLI/API 真实运行都会消耗账户用量，并可能收费。
+Windows 将 `bash scripts/run.sh` 换成 `./scripts/run.ps1`。即使不发邮件，Agent 与 API
+真实运行仍消耗账户用量，并可能收费。证据不足或校验失败时，不会生成成功的研究报告。
 
 ### 选择投递与调度方式
 
@@ -290,8 +318,9 @@ Windows 将 `bash scripts/run.sh` 换成 `./scripts/run.ps1` 即可。模型缺�
 `schedule --send`，或由外部定时器每分钟调用 `tick --send`。
 使用获授权的已连接邮件工具时，运行 `run --prepare-connector`，用 `begin-send` 领取
 不可变消息，通过工具发送一次，再用 `confirm-sent` 写入已确认的服务商回执。
-准备消息本身不会发送邮件。目前只有 `run` 支持准备连接工具消息，由宿主另行安排
-重复执行与外部工具调用。[模型后端与投递流程](docs/model-backends.md)。
+准备消息本身不会发送邮件。Agent 模式也支持 `tick --prepare-connector` 与
+`schedule --prepare-connector`；实际外部邮件工具调用和回执仍由宿主安排。
+Standalone 模式用 `run` 准备。[模型后端与投递流程](docs/model-backends.md)。
 
 保持执行机器在线，并保留持久状态目录。[完整配置与调度说明](docs/user-guide_中文.md)。
 
@@ -306,3 +335,5 @@ Windows 将 `bash scripts/run.sh` 换成 `./scripts/run.ps1` 即可。模型缺�
 这是自托管软件，需要你提供运行主机和模型访问。发邮件可用 SMTP 或获授权的外部邮件工具。
 模型调用会把主题设置、候选元数据和论文证据发送给所选提供方，并消耗该账户用量。原文图只有在符合支持的
 转载权限时才嵌入，否则使用来源链接。服务商接受邮件不等于保证送达收件箱。
+
+Python 包与命令 `paper-tracker` / `literature-digest` 保留原名，兼容已有安装。

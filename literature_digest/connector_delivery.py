@@ -68,7 +68,7 @@ def _timestamp(value, label):
 
 def _result(item):
     payload = item["payload"]
-    return {"status": item["status"], "digest_id": item["id"], "workflow": "program_pipeline_connector",
+    return {"status": item["status"], "digest_id": item["id"], "workflow": payload.get("workflow", "program_pipeline_connector"),
             "paper_count": payload["paper_count"], "envelope_sha256": payload["envelope_sha256"],
             "paths": payload["paths"], "automatic_send": False}
 

@@ -1,7 +1,7 @@
 """Portable, non-interactive CLI model transports; public evidence goes on stdin.
 
 These are model adapters, not research agents: retrieval, validation and delivery
-remain in Smart Paper Tracker. No shell invocation or approval bypass is used.
+remain in Super Paper radar. No shell invocation or approval bypass is used.
 """
 from __future__ import annotations
 

@@ -1,9 +1,39 @@
-# Smart Paper Tracker v2.1.0 validation record
+# Super Paper radar v3.0.0 validation record
 
 Validated on 2026-10-03 in a Linux cloud workspace with Python 3.12.14. This
 record covers local verification of the integrated source before publication.
 No SMTP message or installed background scheduler was part of these checks.
 The historical v2.1.0 baseline below is separate from the current correction.
+
+## Agent-led release verification (2026-10-03)
+
+- 337 offline tests pass, including 34 new source-tool tests and 16 agent-job,
+  scheduler-routing, evidence, promotion, recovery, model/effort and ledger tests.
+- Full-agent invocation retains tools and normal security controls. Static argv
+  tests verify explicit model/effort propagation and absence of application
+  permission-bypass/tool-disabling/fallback flags. A prose-only successful CLI
+  exit cannot complete a job; the validated durable commit is required.
+- Independent clean wheel install into a fresh venv under a path with spaces
+  verifies init, static validation, synthetic preview, job export and tool use
+  from an unrelated working directory after moving the source checkout.
+- Independent fake-agent OS subprocess follows exported tools through ingestion,
+  validation, finalization, saved literature and HTML/text/JSON/RIS/BibTeX output.
+  This proves application orchestration, not live model compatibility.
+- Interruption tests cover post-outbox-commit recovery without replacement,
+  live uncertain-ledger status, no repeated tick charges and explicit operator
+  confirmation before resuming potentially active tool descendants. A Linux
+  subprocess test verifies process-group timeout cleanup. Windows timeouts fail
+  closed pending operator recovery; native Windows execution was not performed.
+- Original source tools verify supported official URL identities, configured
+  source/topic limits, provenance, evidence hashes and arXiv first-submission
+  dates. Offline tests distinguish rate-limit fallback from access denial,
+  redirects, malformed metadata and identity mismatches.
+- Compile checks, deterministic fixture synchronization and JavaScript demo
+  interaction smoke pass. The public demo remains entirely synthetic/offline.
+- Existing Codex runtime is blocked by read-only initialization on this cloud
+  host. No successful live nested Codex/Claude invocation, real mail send or
+  installed persistent scheduler is claimed here. Host-agent runs, if performed,
+  must be identified separately and validated through this release's job tools.
 
 ## Current program-workflow correction (2026-10-03)
 

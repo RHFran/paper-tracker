@@ -1,4 +1,4 @@
-# Running Smart Paper Tracker on a schedule
+# Running Super Paper radar on a schedule
 
 These are examples to review and adapt, not installed services. First complete
 configuration validation, inspect a real dry run, and test your own sender.
@@ -11,8 +11,10 @@ starting point for several topic schedules sent to the same inbox. It uses three
 unique profile IDs: BVOCs every Monday at 08:30, tree-species remote sensing every
 Wednesday at 09:00, and urban forests only on `2027-03-15` at 10:00, all in
 `Asia/Shanghai`. Replace the example recipient, topics and future date before use.
-Email and model calls are disabled in the example. Configure the required LLM
-before running a real digest; offline `preview` works without one.
+Email is disabled in the example. New examples select the full agent workflow;
+`run`/`tick` can consume account usage once a CLI is available. Select the correct
+agent and review costs before live work; offline `preview` makes no model calls.
+See [agent workflow](../docs/agent-workflow.md) for host/connector scheduling.
 
 - `schedule.weekdays`: nonempty unique integers, `0=Monday` through `6=Sunday`.
 - `schedule.dates`: nonempty unique valid `YYYY-MM-DD` strings, interpreted in the

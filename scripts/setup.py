@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -23,6 +24,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Create/reuse .venv, preserve existing config, validate and generate an offline preview. Never send or install a scheduler.")
     parser.add_argument("--config", help="Config path; relative paths are relative to the checkout")
     parser.add_argument("--demo", action="store_true", help="Use a synthetic demo identity without questions; default config: runtime/demo/config.json")
+    parser.add_argument("--api", action="store_true", help="Explicitly choose optional standalone API workflow and offer its key wizard for new configs")
+    parser.add_argument("--agent-backend", choices=["codex", "claude", "host"], default="codex")
     parser.add_argument("--skip-model", action="store_true", help="Do not offer interactive model setup; live runs still require a model")
     parser.add_argument("--skip-install", action="store_true", help="Reuse an already provisioned .venv without pip/network")
     args = parser.parse_args(argv)
@@ -56,15 +59,19 @@ def main(argv=None):
         cli = [str(python), "-m", "literature_digest", "--config", str(config)]
         new_config = not config.exists()
         if new_config:
-            command = cli + ["init"]
+            command = cli + ["init", "--agent-backend", args.agent_backend]
             if args.demo:
                 command += ["--yes", "--recipient", "researcher@example.org", "--topic", "forest carbon climate", "--language", "en", "--timezone", "UTC"]
             checked(command)
+            if args.api:
+                settings = json.loads(config.read_text(encoding="utf-8"))
+                settings["workflow"] = {"mode": "standalone"}
+                config.write_text(json.dumps(settings, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         else:
             print("Keeping the existing configuration unchanged.", flush=True)
         configured_model = False
-        if not args.demo and not args.skip_model and new_config:
-            print("Live digests require an LLM; token charges depend on provider/model and paper count. Offline preview is free of API calls.", flush=True)
+        if args.api and not args.demo and not args.skip_model and new_config:
+            print("Optional standalone API workflow: token charges depend on provider/model and paper count. Offline preview makes no model calls.", flush=True)
             if input("Configure your provider/model and enter the API key locally now? [Y/n]: ").strip().lower() not in ("n", "no"):
                 checked(cli + ["configure-model"])
                 configured_model = (config.parent / ".env").is_file()
@@ -77,8 +84,8 @@ def main(argv=None):
         print(f"Setup stopped (exit {exc.returncode}). Existing configuration was not overwritten. See docs/platform-setup.md for prerequisites and troubleshooting.", file=sys.stderr)
         return exc.returncode or 1
     print("\nReady: offline preview created. No mail was sent and no scheduler was installed.")
-    print("Next: edit your topics/schedule, configure the required LLM and optional SMTP, and inspect a live dry run.")
-    print("CLI backend: bash scripts/run.sh --config <your-config> run (configure llm.backend first)")
+    print("Next: edit topics/schedule, select a usable Codex/Claude agent or host agent, and review account costs before a live job.")
+    print("Agent mode: bash scripts/run.sh --config <your-config> run (agent.backend=codex/claude/host). Optional API: setup --api or configure-model.")
     print("API/SMTP secrets, if used: add --env-file <private-.env> before the command")
     print("Linux/macOS: bash scripts/run.sh --config <your-config> run")
     print("Windows: .\\scripts\\run.ps1 --config <your-config> run")

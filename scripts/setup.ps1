@@ -4,6 +4,8 @@ param(
     [switch]$Demo,
     [switch]$SkipInstall,
     [switch]$SkipModel,
+    [switch]$Api,
+    [ValidateSet("codex", "claude", "host")][string]$AgentBackend = "codex",
     [string]$Python
 )
 $ErrorActionPreference = 'Stop'
@@ -24,5 +26,7 @@ if ($Config) { $SetupArgs += @('--config', $Config) }
 if ($Demo) { $SetupArgs += '--demo' }
 if ($SkipInstall) { $SetupArgs += '--skip-install' }
 if ($SkipModel) { $SetupArgs += '--skip-model' }
+if ($Api) { $SetupArgs += '--api' }
+$SetupArgs += @('--agent-backend', $AgentBackend)
 & $Executable @PythonArgs @SetupArgs
 exit $LASTEXITCODE

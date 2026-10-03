@@ -1,6 +1,6 @@
 # EXAMPLE ONLY. Tick checks each profile's configured local schedule.
 [Unit]
-Description=Check Smart Paper Tracker schedules every minute
+Description=Check Super Paper radar schedules every minute
 
 [Timer]
 OnBootSec=1min

@@ -1,6 +1,34 @@
 # Changelog
 
-## Unreleased
+## 3.0.0 — 2026-10-03
+
+### Agent-led research and Super Paper radar
+
+- New installs and examples default to agent-led research: the timer launches a
+  full Codex/Claude Code agent, which chooses queries/tools, reads evidence,
+  screens papers, interprets findings and manages the library through project tools.
+- Add a durable host-agent contract for Codex dot and other existing agents:
+  `agent-export`, `agent-tool` source retrieval/ingestion/validation/finalization,
+  and explicit interrupted-process recovery. Exporting a job is not research.
+- Verify original metadata and evidence for supported DOI/arXiv/PMC URLs, including
+  a narrowly verified arXiv abstract-page fallback for API429/network outages.
+- Preserve anchored claims, profile/audience isolation, stable-ID deduplication,
+  immutable connector outboxes and actual provider-receipt confirmation.
+- Full agents keep normal tools/security settings; no permission bypass,
+  credential copying, forced no-tools transformation or account-runtime relocation.
+- Support explicit model and provider-specific reasoning effort. Audits distinguish
+  requested settings from unverified effective model; host settings are selected
+  at the host. The application does not choose a fallback model.
+- Existing configs without `workflow` retain the standalone pipeline; its API and
+  legacy model-only adapters remain available. API setup is now explicitly opt-in.
+- Rename public branding and repository to Super Paper radar, use the selected
+  paper-radar logo and recommend the Codex dot host workflow. Existing Python
+  package, command aliases, environment names and service filenames are compatible.
+- Verified 337 offline tests, source/installed-package portability and an actual
+  synthetic agent subprocess/tool lifecycle. Live Codex inference, native Windows
+  execution and real mail delivery are not implied by these checks.
+
+## Prior standalone pipeline changes (retained)
 
 ### Portable program-owned model workflow
 

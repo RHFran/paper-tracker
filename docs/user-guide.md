@@ -1,4 +1,4 @@
-# Smart Paper Tracker user guide
+# Super Paper radar user guide
 
 <a id="english"></a>
 
@@ -16,8 +16,10 @@ profiles from the same operator-managed backend.
 - Searches **Crossref, Europe PMC and arXiv**, with configurable queries and topic filters.
 - Produces **HTML, plain text and JSON audit reports** with source links and evidence levels,
   plus **RIS and BibTeX** files for reference-manager import.
-- Uses a Codex/Claude Code CLI or compatible API for real research digests, producing an evidence-grounded
-  research overview and structured paper summaries. Failed analysis blocks delivery.
+- Lets a Codex, Claude Code or host agent lead query planning, evidence reading,
+  relevance screening and synthesis using the program's tools. The validated
+  digest has an evidence-grounded overview and structured paper summaries.
+  An independent standalone API/model-only pipeline remains optional.
 - Uses a concise, Nature-inspired editorial layout with **one global numbered
   reference list** across the overview and topic sections.
 - Optionally includes rights-checked source figures or source links. It never
@@ -30,16 +32,17 @@ profiles from the same operator-managed backend.
 
 This is a self-hosted CLI/backend, not an already-hosted subscription service.
 An email address alone cannot activate delivery: an operator must provide a
-running host, retrieval network access and a usable model backend. Choose an
-already-installed, logged-in Codex/Claude Code CLI (no second API key), or an
-independent compatible API. Email uses SMTP or the explicit connector handoff.
-See [model backends and delivery](model-backends.md). The program performs the
-research pipeline itself; there is no required host-written report import.
+running host, retrieval network access and a usable research agent. Choose an
+already-installed, logged-in Codex/Claude Code CLI (no second model API key), or a
+host agent able to execute the exported job contract. The program provides
+retrieval, evidence validation, deduplication, rendering and a durable literature
+library. Email uses SMTP or the explicit connector handoff. See the
+[agent workflow](agent-workflow.md) and [standalone alternative](model-backends.md#standalone-compatibility-mode).
 
 ## Try the demo first
 
-[Open the rendered HTML demo](https://rhfran.github.io/smart-paper-tracker/?lang=en)
-or [switch to Chinese](https://rhfran.github.io/smart-paper-tracker/).
+[Open the rendered HTML demo](https://rhfran.github.io/super-paper-radar/?lang=en)
+or [switch to Chinese](https://rhfran.github.io/super-paper-radar/).
 
 No API keys, account or email configuration needed. Python 3.11+ and timezone
 data must be available; Windows users should run [setup](../docs/platform-setup.md)
@@ -92,11 +95,12 @@ paper-tracker validate
 # Safe visual demo: synthetic papers, no retrieval, model call or email.
 paper-tracker preview --language en
 
-# After configuring the required LLM below, generate a real report without email.
+# After choosing and checking the research agent below, run real research without email.
 paper-tracker run
 ```
 
-The JSON response reports generated file paths. Open the `.html` report in your
+A completed run's JSON response reports generated file paths; a host job first
+returns its task/contract paths instead. Open the completed `.html` report in your
 browser, read `.txt` for a mail-friendly version, and inspect `.json` for provenance.
 The offline preview is explicitly marked as demonstration content, not real research.
 
@@ -110,12 +114,15 @@ paper-tracker --config config.json init --yes \
 ```
 
 Replace the reserved example address with the intended recipient. Initialization
-does not enable sending or store credentials. `--config` and `--profile` are global
-options: put them before the command.
+does not enable sending or store credentials. New configurations use
+`workflow.mode: "agent"`; `init --agent-backend codex|claude|host` selects the
+research backend. The default is Codex. `--config` and `--profile` are global
+options: put them before the command. Host mode returns an `awaiting_agent` task,
+not a report, until the host completes its tools. See [the job contract](agent-workflow.md).
 
 ## Upgrading from 1.x
 
-The project is now **Smart Paper Tracker**. The distribution remains `paper-tracker`,
+The project is now **Super Paper radar**. The distribution remains `paper-tracker`,
 as introduced in 2.0; existing commands, configurations and environment names stay
 compatible.
 After stopping the worker and completing the backup in step 1 below, uninstall
@@ -126,6 +133,9 @@ The command alias and import package remain compatible.
 
 This is an in-place code upgrade. Keep your existing single-reader configuration
 first; do not rerun `init` or replace private files with the examples.
+A config without `workflow` retains the standalone fixed pipeline. To move to
+agent-led research, explicitly select `workflow.mode: "agent"` and configure
+`agent`; new example files are not a silent migration for existing installations.
 
 1. Stop the old scheduler/worker. Privately back up the old source, `config.json`,
    environment/secrets file and the entire state directory, including SQLite
@@ -212,7 +222,7 @@ These reader settings are the main controls:
 
 Use `config.profiles.example.json` or the alternative
 [`templates/profiles.example.json`](../templates/profiles.example.json). Put shared
-retrieval, mail and default model settings at the root and each reader's settings
+retrieval, mail and default workflow/agent settings at the root and each reader's settings
 in `profiles`. Each profile has a unique `id` and its own recipient, topics and
 schedule. Several profiles may share the same recipient and send separate
 messages, including on the same day. Use one profile with several topics when you
@@ -224,13 +234,16 @@ paper-tracker --config config.profiles.example.json --profile battery-en run
 # Omit --profile to process all configured readers.
 ```
 
-A profile can override the root `llm` settings to use a different provider, model
-or credential environment. Put **environment variable names, never API keys**, in
+A profile can override root `workflow` and `agent` settings to choose its research
+agent. For the optional standalone path, it can override `llm` to use a different
+provider, model or credential environment. Put **environment variable names,
+never API keys**, in
 `base_url_env`, `api_key_env` and `model_env`. For example, merge this fragment into
 one profile, then set the corresponding variables privately on its host:
 
 ```json
 {
+  "workflow": {"mode": "standalone"},
   "llm": {
     "enabled": true,
     "base_url_env": "BVOC_LLM_BASE_URL",
@@ -261,7 +274,7 @@ do not have schedules. Start from the complete, safe
 
 All three use `Asia/Shanghai` local time and inherit the same example recipient.
 Change the address, timezone, language, queries and date to your needs. Here is the
-core configuration (model calls and email are disabled):
+core configuration (email is disabled; running a real job consumes agent usage):
 
 ```json
 {
@@ -269,7 +282,8 @@ core configuration (model calls and email are disabled):
   "timezone": "Asia/Shanghai",
   "language": "en",
   "schedule": {"time": "08:30", "weekdays": [0, 1, 2, 3, 4], "catch_up": true},
-  "llm": {"enabled": false},
+  "workflow": {"mode": "agent"},
+  "agent": {"backend": "codex", "executable": "", "model": "", "reasoning_effort": "", "timeout_seconds": 1800},
   "mail": {"enabled": false},
   "profiles": [
     {
@@ -311,8 +325,9 @@ A profile inherits shared schedule fields such as `catch_up`, but an explicit
 back to recurring weekdays and clears inherited dates. A profile that overrides
 only `time` retains its inherited day/date selection. Keep profile IDs stable:
 state and paper deduplication are separate for each profile, so a paper matching
-two profiles can appear in both, even when they share a recipient. Enable and
-configure the required LLM before using a real `run` or a due `tick`.
+two profiles can appear in both, even when they share a recipient. Choose and
+verify the agent before a real `run` or due `tick`; existing standalone configs
+instead require an enabled, configured LLM.
 
 Copy the example to a private file before editing:
 
@@ -338,31 +353,50 @@ once per minute. Simply saving the JSON does not activate a service.
 
 ## Enable model summaries and email
 
-### CLI backends and model-assisted discovery
+### Agent-led research
 
-For Codex/Claude Code, install and log in to the CLI on the execution machine,
-then set `llm.enabled: true` and `llm.backend: "codex"` or `"claude"`. The
-program invokes it for structured output; its credentials stay with the CLI.
-Optional `cli_executable` selects a command path, `cli_model` selects a model
-(empty uses the effective default of the isolated CLI invocation, not its user-configured model), and `cli_timeout_seconds` defaults to 180 with a
-maximum of 1800 per call. CLI/account usage and limits still apply.
+New configs select `workflow.mode: "agent"`. Choose `agent.backend` as `codex`,
+`claude` or `host`. Codex/Claude must already be installed and signed in on the
+execution machine; normal tools and security controls stay enabled. The agent
+owns research planning, retrieval choices, relevance decisions and synthesis,
+using the program's tools for source evidence, validation and finalization.
 
-Enable `llm.plan_queries` for model-assisted query planning and
-`llm.screen_candidates` for relevance screening; `max_screen_candidates` defaults
-to 50. Both switches default to false for old configurations. They add model
-calls before evidence-grounded paper analysis. See [backend configuration](model-backends.md).
+`agent.executable` can select a command path; empty `agent.model` uses the agent's
+configured default. `agent.timeout_seconds` defaults to 1800 per complete agent
+invocation. No separate model API key is needed for a usable login, but account
+usage, costs and limits still apply. `llm.enabled`, `plan_queries` and
+`screen_candidates` belong to standalone mode and do not control agent research.
 
-Email transport is independent: choose the existing SMTP route below, or
-`run --prepare-connector` followed by the authorized host's one external tool send
-and confirmed receipt import. Only `run` prepares connector messages; `tick` and
-`schedule` do not invoke an external connector. See the [connector lifecycle](model-backends.md#connector-send-lifecycle).
+`run`, due `tick` and `schedule` use the agent workflow. For `host`, they return an
+`awaiting_agent` task; the host reads its exported contract and calls
+`agent-tool JOB_ID` search/fetch/ingest/validate/finalize operations. An exported
+job is not a report. Finalization checks evidence, saves selected literature,
+renders the report and prepares any requested outbox; it never sends email.
+See [the complete tool contract](agent-workflow.md) for commands and result schema.
+
+Email transport is independent. Choose SMTP below, or `run --prepare-connector`
+and then the authorized host's one external send and confirmed receipt import.
+A host agent must complete research before claiming an envelope. `tick` and
+`schedule` do not invoke an external mail connector. See the
+[connector lifecycle](model-backends.md#connector-send-lifecycle).
+
+### Standalone model-only backends
+
+Existing configurations with no `workflow` retain the fixed pipeline. You can
+select it explicitly with `workflow.mode: "standalone"`. Set `llm.enabled: true`
+and choose `llm.backend: "api"`, `"codex"` or `"claude"`; these are model-only
+calls made by the program. The old `cli_executable`, `cli_model`,
+`cli_timeout_seconds`, `plan_queries`, `screen_candidates` and
+`max_screen_candidates` settings still apply in this mode.
+[Standalone backend details](model-backends.md#standalone-compatibility-mode).
 
 ### Independent API and direct SMTP
 
 The local API wizard supports OpenAI-compatible providers including DeepSeek,
 Qwen, Moonshot, OpenAI and a custom HTTPS endpoint. Choose your actual model ID;
-provider availability and pricing can change. New interactive setup offers the
-wizard automatically, or run it later:
+provider availability and pricing can change. This is the optional standalone
+workflow: choose `workflow.mode: "standalone"` and `llm.backend: "api"`. Setup's
+`--api` option chooses it, or run the independent wizard later:
 
 ```sh
 bash scripts/run.sh --config config.json configure-model
@@ -382,11 +416,12 @@ confirmation before replacement. For process-only input without saving, configur
 environment references and use `--prompt-secrets` instead. See
 [platform/provider instructions](../docs/platform-setup.md) for full details.
 
-For manual API (`llm.backend: "api"`, the default) and SMTP setup:
+For manual standalone API (`llm.backend: "api"`, its default) and SMTP setup:
 
 1. Copy `.env.example` to a private `.env`, then fill it in locally. The CLI reads
    process environment variables; it does **not** automatically load `.env`.
-2. Real `run`, due `tick`/`schedule`, and delivery require an enabled, configured LLM.
+2. In standalone mode, real `run`, due `tick`/`schedule`, and delivery require an
+   enabled, configured LLM.
    Set `llm.enabled` to `true` and configure an HTTPS OpenAI-compatible
    chat-completions base URL, model and API key. Compatible domestic providers
    can be used too; see [provider setup](../docs/platform-setup.md). The offline
@@ -426,9 +461,13 @@ SMTP acceptance means the sender accepted the message, not guaranteed inbox deli
 ## Scheduling
 
 Choose one scheduling approach and keep the machine running with its configured
-model login/secrets and durable state accessible. These commands are the direct
-SMTP path. A connector host separately schedules the prepare/claim/send/confirm
-workflow; connector preparation is currently an immediate `run` operation.
+agent login/tools or standalone model secrets and durable state accessible.
+In agent mode, each due run dispatches the complete agent job. A host backend
+also needs an available host agent to consume and finalize its returned task;
+a timer alone cannot do the research. These commands are the direct SMTP path. A connector host separately schedules the prepare/claim/send/confirm
+workflow. In agent mode it can use `tick --prepare-connector` or
+`schedule --prepare-connector` for calendar-controlled preparation; standalone
+preparation remains an immediate `run` operation. These flags do not send mail.
 
 ```sh
 # Foreground worker, checking each reader's local schedule; Ctrl-C to stop.
@@ -527,7 +566,12 @@ and never delete the database to bypass uncertainty safeguards.
   Empty output does not establish that no relevant literature exists.
 - **Retrieval failure:** check network access, provider limits and returned errors.
   A failed required source is reported rather than sent as a successful empty digest.
-- **No summaries:** enable/configure the required model, inspect model errors and
+- **Agent job blocked:** inspect `agent-tool JOB_ID status` and the returned error.
+  Check CLI login, model allowance, source access, tool permissions and result
+  validation. A job export or agent chat message is not completion. Resolve the
+  cause before `run --retry-agent`; repeated ticks do not automatically launch
+  a new paid attempt. Host jobs require the host to finish the exported contract.
+- **No standalone summaries:** enable/configure the required model, inspect model errors and
   check evidence availability. Failed or unsupported analysis blocks delivery.
   After a failed paper/overview analysis, automatic `tick`/`schedule` retries for
   that profile pause for the rest of its local day to avoid repeated paid calls

@@ -1,4 +1,4 @@
-# Smart Paper Tracker 完整使用指南
+# Super Paper radar 完整使用指南
 
 <a id="chinese"></a>
 
@@ -15,7 +15,8 @@
 - 检索 **Crossref、Europe PMC 和 arXiv**，支持自定义查询与主题过滤规则。
 - 生成 **HTML、纯文本和 JSON 审计报告**，保留来源链接与证据级别，
   同时提供 **RIS 与 BibTeX**，供文献管理软件导入。
-- 真实研究简报使用 **Codex / Claude Code CLI 或兼容 API**，生成有证据支撑的论文解读与研究综述；解读失败会阻止发送。
+- 由 **Codex、Claude Code 或宿主 Agent** 自主规划查询、阅读证据、筛选和综合，调用
+  程序工具生成经校验的论文解读与研究综述。独立 API／仅模型调用固定流程仍可选。
 - 使用简洁的 Nature 风格编辑结构，综述与各主题共用**全局编号参考文献**。
 - 按需展示符合转载条件的原文图或来源链接，不伪造研究配图。
 - 支持多读者隔离、持久化去重、按时区调度（每周重复或指定日期单次运行），
@@ -23,15 +24,16 @@
 - **默认不发邮件**。`preview` 是离线合成示例；`run` 检索真实文献，只有明确加上 `--send` 才尝试发送。
 
 这是需要自行运行的 CLI/后端，不是已经上线的订阅网站。
-只填写邮箱不能让服务自动运转：运营者需要提供持续运行的主机、检索网络和可用模型后端。
-模型可用已安装并登录的 Codex / Claude Code CLI（不需要第二把 API key），也可用独立
-兼容 API。邮件可用 SMTP 或明确的连接工具交接流程，见[模型后端与投递](model-backends.md)。
-程序自己执行研究流程，不要求宿主 Agent 手写研究报告再导入。
+只填写邮箱不能让服务自动运转：需要持续运行的主机、检索网络和可用研究 Agent。
+可选已安装并登录的 Codex / Claude Code CLI（无需第二把模型 API key），或能执行
+导出任务契约的宿主 Agent。程序提供检索、证据校验、去重、排版和持久文献库。
+邮件可用 SMTP 或明确的连接工具交接流程。详见 [Agent 工作流](agent-workflow.md)
+与 [standalone 可选流程](model-backends.md#standalone-compatibility-mode)。
 
 ## 先体验离线演示
 
-[直接打开 HTML 演示](https://rhfran.github.io/smart-paper-tracker/)，
-或查看[英文版](https://rhfran.github.io/smart-paper-tracker/?lang=en)。
+[直接打开 HTML 演示](https://rhfran.github.io/super-paper-radar/)，
+或查看[英文版](https://rhfran.github.io/super-paper-radar/?lang=en)。
 
 不需要 API key、注册账号或邮箱配置。需要已有 Python 3.11+ 和时区数据；
 Windows 用户应先运行[安装脚本](../docs/platform-setup_中文.md)，安装时区包。
@@ -79,11 +81,12 @@ paper-tracker validate
 # 离线查看版式：合成论文，不联网检索、不调用模型、不发邮件。
 paper-tracker preview --language zh-CN
 
-# 先按下方说明配置必需的 LLM，再生成真实报告；不发送邮件。
+# 先按下方说明选择并检查研究 Agent，再执行真实研究；不发送邮件。
 paper-tracker run
 ```
 
-命令返回的 JSON 会列出生成文件路径。用浏览器打开 `.html` 查看版式；`.txt`
+完成运行后的 JSON 会列出报告路径；host 任务先返回任务／契约路径，须完成后才有报告。
+用浏览器打开成品 `.html` 查看版式；`.txt`
 适合纯文本阅读；`.json` 记录来源、证据与筛选过程。离线示例会明确标注为演示，
 不应作为真实研究引用。
 
@@ -96,20 +99,23 @@ paper-tracker --config config.json init --yes \
   --language zh-CN --timezone Asia/Shanghai --time 08:30
 ```
 
-把示例邮箱改成实际收件地址。初始化不会启用发件，也不会保存凭据。
-`--config` 和 `--profile` 是全局参数，需要放在子命令之前。
+把示例邮箱改成实际收件地址。初始化不会启用发件，也不会保存凭据。新配置默认使用
+`workflow.mode: "agent"` 与 Codex；可用 `init --agent-backend codex|claude|host` 选择。
+Host 模式返回 `awaiting_agent` 任务，宿主调用工具完成后才会产生报告，见
+[任务契约](agent-workflow.md)。`--config` 和 `--profile` 是全局参数，需放在子命令之前。
 
 <a id="upgrade-zh"></a>
 
 ## 从 1.x 原地升级
 
-项目现名 **Smart Paper Tracker**，Python 发行包继续使用 2.0 起的 `paper-tracker`；
+项目现名 **Super Paper radar**，Python 发行包继续使用 2.0 起的 `paper-tracker`；
 现有命令、配置格式与环境变量名称保持兼容。先停止工作进程并完成下方第 1 步的备份，再在旧虚拟环境运行
 `python -m pip uninstall daily-literature-digest`，再在新源码目录运行
 `python -m pip install .`。私有配置和状态应保留在包文件之外；原命令别名与模块导入路径继续兼容。
 
 本次升级更新应用代码。最稳妥的第一步是保留现有单读者配置，不重新执行 `init`，
-也不要用示例覆盖私有文件。
+也不要用示例覆盖私有文件。旧配置未填写 `workflow` 时继续使用 standalone 固定流程；
+若要迁移，须明确选择 `workflow.mode: "agent"` 并配置 `agent`。新示例不会让旧安装静默迁移。
 
 1. 停止旧定时器或工作进程。私下备份旧代码、`config.json`、环境变量/凭据文件及
    整个状态目录，包括 SQLite 数据库和可能存在的 WAL/SHM 文件；备份期间保持所有工作进程停止。
@@ -180,7 +186,7 @@ paper-tracker --config config.json init --yes \
 
 参考 `config.profiles.example.json` 或
 [`templates/profiles.example.json`](../templates/profiles.example.json)。
-共享的检索、SMTP 和默认模型配置放在根层；每位读者放在 `profiles` 中，设置唯一的
+共享的检索、SMTP 和默认 workflow／agent 配置放在根层；每位读者放在 `profiles` 中，设置唯一的
 `id` 及各自的邮箱、主题、语言与计划时间。多个档案可以使用同一个收件邮箱，并分别发送邮件，
 包括在同一天发送。想把多个主题合成一封简报时，请将这些主题放在同一个档案中。
 
@@ -190,12 +196,14 @@ paper-tracker --config config.profiles.example.json --profile battery-en run
 # 不指定 --profile 时，处理配置中的所有读者。
 ```
 
-每个档案可以覆盖根层的 `llm`，选择不同的服务商、模型或凭据环境。
-`base_url_env`、`api_key_env` 和 `model_env` 填写的是**环境变量名称，不是 API key**。
+每个档案可覆盖根层的 `workflow` 和 `agent`，选择研究 Agent。采用可选 standalone
+流程时，也可覆盖 `llm`，选择服务商、模型或凭据环境。`base_url_env`、`api_key_env`
+和 `model_env` 填写的是**环境变量名称，不是 API key**。
 例如，将以下片段合并到某个档案，再在运行主机私下设置对应变量：
 
 ```json
 {
+  "workflow": {"mode": "standalone"},
   "llm": {
     "enabled": true,
     "base_url_env": "BVOC_LLM_BASE_URL",
@@ -226,7 +234,7 @@ paper-tracker --config config.profiles.example.json --profile battery-en run
 - 仅 2027 年 3 月 15 日 10:00：城市森林与降温研究
 
 三组计划都使用 `Asia/Shanghai` 当地时间，并继承同一个示例收件人。
-请按需要修改邮箱、时区、语言、查询词和日期。核心配置如下（模型调用与发邮件均关闭）：
+请按需要修改邮箱、时区、语言、查询词和日期。核心配置如下（不发邮件，真实运行会消耗 Agent 用量）：
 
 ```json
 {
@@ -234,7 +242,8 @@ paper-tracker --config config.profiles.example.json --profile battery-en run
   "timezone": "Asia/Shanghai",
   "language": "en",
   "schedule": {"time": "08:30", "weekdays": [0, 1, 2, 3, 4], "catch_up": true},
-  "llm": {"enabled": false},
+  "workflow": {"mode": "agent"},
+  "agent": {"backend": "codex", "executable": "", "model": "", "reasoning_effort": "", "timeout_seconds": 1800},
   "mail": {"enabled": false},
   "profiles": [
     {
@@ -275,7 +284,8 @@ paper-tracker --config config.profiles.example.json --profile battery-en run
 `weekdays`；明确填写 `weekdays` 列表则切回每周重复，并清除继承的日期。
 如果档案只覆盖 `time`，原有的星期或日期选择不变。档案 ID 应保持稳定：每个档案
 有独立的状态和论文去重记录，即使共用邮箱，同一论文若匹配两个档案，仍可能分别出现。
-使用真实 `run` 或已到期的 `tick` 前，必须先启用并配置 LLM。
+真实 `run` 或到期的 `tick` 前应选择并检查 Agent；使用旧 standalone 配置时，仍须
+启用并配置 LLM。
 
 先复制示例，再编辑私有配置：
 
@@ -302,26 +312,41 @@ bash scripts/run.sh --env-file .env --config config.calendar.json tick
 
 ## 启用模型解读和发邮件
 
-### CLI 后端与模型辅助发现
+### Agent 主导研究
 
-在执行机器上安装并登录 Codex / Claude Code CLI，设置 `llm.enabled: true` 和
-`llm.backend: "codex"` 或 `"claude"`。程序调用 CLI 获取结构化结果，凭据留在 CLI 中。
-`cli_executable` 可指定命令路径；`cli_model` 留空使用隔离调用的有效 CLI 默认模型，不读取用户配置中的模型；
-`cli_timeout_seconds` 默认 180 秒、最高 1800 秒，针对每次调用。仍消耗账户用量并受额度限制。
+新配置选择 `workflow.mode: "agent"`，`agent.backend` 可设为 `codex`、`claude` 或 `host`。
+Codex／Claude 应已在执行机器安装并登录，保留正常工具与安全控制。Agent 自主负责规划、
+检索选择、相关性判断和综合，调用程序工具获得来源证据、校验并完成结果。
 
-`llm.plan_queries` 启用模型辅助查询规划，`llm.screen_candidates` 启用相关性筛选；
-`max_screen_candidates` 默认 50。两个开关为兼容旧配置默认关闭，会在详细论文分析前增加
-模型调用。详见[后端配置](model-backends.md)。
+`agent.executable` 可指定命令路径；`agent.model` 留空使用 Agent 配置的默认模型。
+`agent.timeout_seconds` 默认 1800 秒，针对完整 Agent 调用。可用登录无需独立模型 API key，
+仍受账户用量、费用和额度限制。`llm.enabled`、`plan_queries`、`screen_candidates`
+只属于 standalone 模式，不控制 Agent 研究。
 
-邮件方式与模型后端互不绑定。可使用下面的 SMTP 方式，或 `run --prepare-connector`，
-再由获授权的宿主使用外部邮件工具发送一次并导入确认回执。目前只有 `run` 准备连接工具
-消息，`tick` / `schedule` 不会调用宿主邮件工具。详见[邮件工具流程](model-backends.md#connector-send-lifecycle)。
+`run`、到期的 `tick` 和 `schedule` 使用 Agent 工作流。Host 模式返回 `awaiting_agent`
+任务，由宿主读取导出契约，调用 `agent-tool JOB_ID` 的 search／fetch／ingest／validate／
+finalize 操作。导出任务不是研究报告；完成步骤校验证据、保存文献、排版，并按需准备
+发件箱，但不会发送邮件。[完整工具契约](agent-workflow.md)包含命令与结果格式。
+
+邮件方式独立选择。可使用下方 SMTP，或 `run --prepare-connector`，再由获授权宿主
+通过外部工具发送一次并导入确认回执。Host 必须先完成研究，才能领取消息。
+`tick`／`schedule` 不会自动调用宿主邮件工具，详见
+[邮件工具流程](model-backends.md#connector-send-lifecycle)。
+
+### Standalone 仅模型调用后端
+
+旧配置未填写 `workflow` 时保留固定流程，也可明确设置 `workflow.mode: "standalone"`。
+启用 `llm.enabled: true`，选择 `llm.backend: "api"`、`"codex"` 或 `"claude"`，由程序
+执行仅模型调用。旧的 `cli_executable`、`cli_model`、`cli_timeout_seconds`、
+`plan_queries`、`screen_candidates` 和 `max_screen_candidates` 在此模式继续生效。
+[Standalone 后端详情](model-backends.md#standalone-compatibility-mode)。
 
 ### 独立 API 与直接 SMTP
 
 本地 API 向导支持 DeepSeek、Qwen、Moonshot、OpenAI 及自定义 HTTPS 兼容接口。
-请填写服务商当前可用的实际模型名；可用性和价格可能变化。新配置的交互安装会提供向导，
-也可以之后执行：
+请填写服务商当前可用的实际模型名；可用性和价格可能变化。这是可选 standalone 流程，
+应选择 `workflow.mode: "standalone"` 和 `llm.backend: "api"`。安装时可用 `--api` 主动选择，
+也可之后单独执行向导：
 
 ```sh
 bash scripts/run.sh --config config.json configure-model
@@ -339,11 +364,11 @@ POSIX 权限为 `0600`；Windows 请核实继承的访问权限足够私密。�
 引用后用 `--prompt-secrets`，仅在当前进程中输入。详细说明见
 [分平台与模型配置指南](../docs/platform-setup_中文.md)。
 
-独立 API（`llm.backend: "api"`，默认值）与 SMTP 也可以按以下方式手工配置：
+Standalone 独立 API（其中 `llm.backend` 默认 `"api"`）与 SMTP 也可手工配置：
 
 1. 把 `.env.example` 复制为私有 `.env`，在本地填写运行凭据。
    CLI 读取进程环境变量，**不会自动加载 `.env`**。
-2. 真实 `run`、到期的 `tick`/`schedule` 和发送都要求启用并配置 LLM。
+2. Standalone 模式的真实 `run`、到期 `tick`/`schedule` 和发送要求启用并配置 LLM。
    把 `llm.enabled` 改为 `true`，配置 HTTPS 的 OpenAI-compatible
    chat-completions 接口基址、模型名和 API key。也可以使用兼容的国产模型服务，
    见[模型提供方配置](../docs/platform-setup_中文.md)。离线合成 `preview` 不需要 LLM。
@@ -377,9 +402,11 @@ SMTP 接受邮件也不等于邮件一定进入收件人的收件箱。
 
 ## 定时运行
 
-选择一种方式，保持主机运行，并确保进程能访问模型登录/凭据和持久状态。
-以下是直接 SMTP 路径；连接工具的准备、领取、发送与确认流程须由宿主另外安排，
-目前准备连接工具消息的是立即执行的 `run`：
+选择一种方式，保持主机运行，并确保进程能访问 Agent 登录／工具或 standalone 模型凭据，
+以及持久状态。Agent 模式的每次到期运行分派完整研究任务；host 还需有可用宿主 Agent
+完成导出任务，单独的定时器不能研究。以下是直接 SMTP 路径；连接工具的准备、领取、发送与确认流程须由宿主另外安排，
+Agent 模式可用 `tick --prepare-connector` 或 `schedule --prepare-connector` 按日历
+准备消息；standalone 仍用立即执行的 `run`。准备不等于发送。以下为 SMTP 命令：
 
 ```sh
 # 前台常驻，每分钟检查各读者的当地计划时间；Ctrl-C 停止。
@@ -465,7 +492,11 @@ paper-tracker send DIGEST_ID
 - **没有论文**：检查审计中的排除原因、发表日期要求和主题过滤词。
   空结果不等于不存在相关文献。
 - **检索失败**：检查网络、服务商限流和错误信息。配置来源检索失败时，不把结果当作正常空简报发送。
-- **没有解读**：检查必需的模型是否启用、凭据是否完整、模型错误和摘要/全文证据是否可用。
+- **Agent 任务被阻挡**：查看 `agent-tool JOB_ID status` 与具体错误，检查 CLI 登录、
+  额度、来源访问、工具权限和结果校验。导出任务或聊天中声称完成不等于真正完成。
+  解决原因后再用 `run --retry-agent`；重复 tick 不会自动产生新的付费调用。
+  Host 任务需由宿主完成契约。
+- **Standalone 没有解读**：检查必需模型是否启用、凭据、模型错误和摘要／全文证据。
   失败或无法支持的解读会阻止发送。论文解读或综述失败后，该档案的 `tick`/`schedule`
   自动重试会暂停至当地日期结束，避免每分钟重复付费调用。暂停状态重启后仍保留，
   `status` 会显示原因。修好模型后，可明确执行 `run` 重试，建议先不加 `--send`。

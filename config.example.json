@@ -1,4 +1,13 @@
 {
+  "workflow": {
+    "mode": "agent"
+  },
+  "agent": {
+    "backend": "codex",
+    "model": "",
+    "reasoning_effort": "",
+    "timeout_seconds": 1800
+  },
   "recipient": "researcher@example.org",
   "timezone": "UTC",
   "language": "en",

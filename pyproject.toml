@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "paper-tracker"
-version = "2.1.0"
-description = "Smart Paper Tracker: evidence-grounded research digests with safe scheduled email delivery"
+version = "3.0.0"
+description = "Super Paper radar: evidence-grounded research digests with safe scheduled email delivery"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
