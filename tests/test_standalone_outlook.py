@@ -174,8 +174,8 @@ class StandalonePipelineOutlook(unittest.TestCase):
         result = run(self.config, now=self.now, http=model, fetchers=self.fetchers, prepare_connector=True)
         self.assertEqual(result["status"], "prepared")
         self.assertEqual(len(model.calls), 3)
-        audit = json.loads(Path(result["paths"]["audit"]).read_text())
-        envelope = json.loads(Path(result["paths"]["envelope"]).read_text())
+        audit = json.loads(Path(result["paths"]["audit"]).read_text(encoding="utf-8"))
+        envelope = json.loads(Path(result["paths"]["envelope"]).read_text(encoding="utf-8"))
         self.assertEqual(audit["outlook"]["mode"], "llm_grounded")
         for heading in ("Problem and design", "Scientific question", "Method chain", "Results and highlights", "Limitations", "Research implications"):
             self.assertEqual(envelope["text"].count(heading + ":"), 1)

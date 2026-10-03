@@ -150,7 +150,7 @@ class FigureJobLifecycle(unittest.TestCase):
         with patch('literature_digest.figures.fetch_public',side_effect=fetcher):
             self.assertTrue(tool(h.config,job['job_id'],'figure',input_path=path)['inline_image'])
         result=tool(h.config,job['job_id'],'finalize',input_path=h.submission())
-        envelope=json.loads(Path(result['paths']['envelope']).read_text())
+        envelope=json.loads(Path(result['paths']['envelope']).read_text(encoding='utf-8'))
         self.assertEqual(len(envelope['inline_images']),1);self.assertIn('cid:figure-',envelope['html'])
         with self.assertRaisesRegex(ValueError,'closed'):tool(h.config,job['job_id'],'figure',input_path=path)
 
@@ -169,7 +169,7 @@ class FigureJobLifecycle(unittest.TestCase):
         self.assertEqual(begin_send(changed,revision['job_id'],now=h.now)['status'],'sending')
         self.assertEqual(state.get(job['job_id']),original)
         self.assertTrue(all(path.read_bytes()==raw for path,raw in snapshot.items()))
-        self.assertIn('Revised edition',json.loads(Path(revised['paths']['envelope']).read_text())['subject'])
+        self.assertIn('Revised edition',json.loads(Path(revised['paths']['envelope']).read_text(encoding='utf-8'))['subject'])
         with self.assertRaises(ValueError):begin_send(changed,revision['job_id'],now=h.now)
 
     def test_revision_does_not_bypass_unconfirmed_original(self):

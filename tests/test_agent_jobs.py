@@ -218,7 +218,7 @@ class AgentJobs(unittest.TestCase):
 
     def test_new_contract_requires_six_sections_and_closing_outlook(self):
         job=create_job(self.config,self.now);self.source(job)
-        self.assertEqual(json.loads(Path(job['contract_path']).read_text())['schema_version'],2)
+        self.assertEqual(json.loads(Path(job['contract_path']).read_text(encoding='utf-8'))['schema_version'],2)
         for mutation in ('outlook','perspective','question','methods','results'):
             data=self.data()
             if mutation=='outlook':data.pop('outlook')
@@ -228,10 +228,10 @@ class AgentJobs(unittest.TestCase):
             with self.subTest(mutation=mutation),self.assertRaises(ValueError):
                 tool(self.config,job['job_id'],'validate',input_path=self.submission(data))
         result=tool(self.config,job['job_id'],'finalize',input_path=self.submission())
-        audit=json.loads(Path(result['paths']['json']).read_text())
+        audit=json.loads(Path(result['paths']['json']).read_text(encoding='utf-8'))
         self.assertIn('outlook',audit)
         self.assertIn('perspective',audit['papers'][0]['analysis'])
-        text=Path(result['paths']['text']).read_text() if 'text' in result['paths'] else Path(result['paths']['txt']).read_text()
+        text=Path(result['paths']['text']).read_text(encoding='utf-8') if 'text' in result['paths'] else Path(result['paths']['txt']).read_text(encoding='utf-8')
         self.assertLess(text.index('Research ideas to test'),text.index('\nReferences\n'))
 
     def test_frozen_schema_one_submission_remains_valid(self):
