@@ -64,11 +64,11 @@ class AgentJobs(unittest.TestCase):
         with patch('literature_digest.pipeline.run') as fixed, patch('literature_digest.agent_sources.search') as search:
             result=run_agent(self.config,now=self.now)
         self.assertEqual(result['status'],'awaiting_agent');fixed.assert_not_called();search.assert_not_called()
-        task=Path(result['task_path']).read_text();self.assertIn('no research pipeline has run',task)
-        output=subprocess.run(result['tool_argv']+['status'],cwd=self.root,capture_output=True,text=True)
+        task=Path(result['task_path']).read_text(encoding='utf-8');self.assertIn('no research pipeline has run',task)
+        output=subprocess.run(result['tool_argv']+['status'],cwd=self.root,capture_output=True,text=True,encoding='utf-8')
         self.assertEqual(output.returncode,0,output.stderr)
         self.assertEqual(json.loads(output.stdout)['status'],'awaiting_agent')
-        self.assertIn("str(Path(__file__).with_name('config.json'))",Path(result['workspace'],'tool.py').read_text())
+        self.assertIn("str(Path(__file__).with_name('config.json'))",Path(result['workspace'],'tool.py').read_text(encoding='utf-8'))
 
     def test_source_ingest_validate_finalize_library_and_idempotence(self):
         job=create_job(self.config,self.now);fetched=self.source(job)
@@ -85,9 +85,9 @@ class AgentJobs(unittest.TestCase):
 
     def test_fake_or_changed_evidence_rejected(self):
         job=create_job(self.config,self.now)
-        bogus=self.root/'fake.json';bogus.write_text(json.dumps({'papers':[self.paper.export(True)]}))
+        bogus=self.root/'fake.json';bogus.write_text(json.dumps({'papers':[self.paper.export(True)]}),encoding='utf-8')
         with self.assertRaisesRegex(ValueError,'unmodified'):tool(self.config,job['job_id'],'ingest',input_path=str(bogus))
-        fetched=self.source(job);Path(fetched['snapshot_path']).write_text('{}')
+        fetched=self.source(job);Path(fetched['snapshot_path']).write_text('{}',encoding='utf-8')
         with self.assertRaisesRegex(ValueError,'unmodified'):tool(self.config,job['job_id'],'ingest',input_path=fetched['snapshot_path'])
 
     def test_anchor_topic_window_and_missing_decisions_fail_closed(self):
@@ -106,7 +106,7 @@ class AgentJobs(unittest.TestCase):
         data={'decisions':[],'analyses':[],'overview':{'paragraphs':[]},'coverage_notes':'No retrieval performed; this must be rejected.'}
         with self.assertRaisesRegex(ValueError,'ingested'):tool(self.config,job['job_id'],'finalize',input_path=self.submission(data))
         self.source(job);result=tool(self.config,job['job_id'],'finalize',input_path=self.submission())
-        audit=json.loads(Path(result['paths']['json']).read_text())
+        audit=json.loads(Path(result['paths']['json']).read_text(encoding='utf-8'))
         self.assertTrue(audit['meta']['partial_coverage']);self.assertEqual(audit['meta']['workflow'],'agent_led')
 
     def test_dry_run_promotes_without_research_and_prepared_never_replaced(self):
@@ -147,7 +147,7 @@ class AgentJobs(unittest.TestCase):
         job=create_job(self.config,self.now)
         changed=copy.deepcopy(self.config);changed['language']='de'
         with self.assertRaisesRegex(ValueError,'configuration changed'):tool(changed,job['job_id'],'status')
-        Path(job['contract_path']).write_text('{}')
+        Path(job['contract_path']).write_text('{}',encoding='utf-8')
         with self.assertRaisesRegex(ValueError,'integrity'):tool(self.config,job['job_id'],'status')
 
     def test_full_agent_command_keeps_tools_and_explicit_model_effort(self):
@@ -184,7 +184,7 @@ class AgentJobs(unittest.TestCase):
         args=['--config',str(path),'init','--yes','--recipient','r@example.org','--topic','earth agents','--agent-backend','host']
         with redirect_stdout(io.StringIO()):self.assertEqual(main(args),0)
         self.assertEqual(load_configs(path)[0]['workflow']['mode'],'agent')
-        path.write_text('{}');self.assertEqual(load_configs(path)[0]['workflow']['mode'],'standalone')
+        path.write_text('{}',encoding='utf-8');self.assertEqual(load_configs(path)[0]['workflow']['mode'],'standalone')
         legacy=copy.deepcopy(DEFAULTS);old=copy.deepcopy(legacy);old.pop('workflow');old.pop('agent')
         self.assertEqual(config_fingerprint(legacy),config_fingerprint(old))
 
