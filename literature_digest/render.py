@@ -252,6 +252,10 @@ def render(papers, meta, config=None, overview=None):
     config = config or {}
     language = output_language(config)
     labels = dict(LABELS["zh" if is_chinese(language) else "en"])
+    if meta.get("partial_coverage"):
+        labels["empty"] = "本次有限检索未发现符合条件的新增论文，不能据此判断完整范围内没有新论文。" if is_chinese(language) else "No matching new papers were found in this bounded retrieval; this does not establish that none exist in the full window."
+        labels["footer"] = ("范围与方法：本次检索受配置的分页/候选上限限制，来源覆盖不完整；已收录文献日期与证据锚点按程序规则核对。" if is_chinese(language) else
+                            "Scope and methods: retrieval was limited by configured page/candidate bounds and source coverage is incomplete. Included publication dates and evidence anchors were checked by the program.")
     if meta.get("demo"):
         labels["records"] = labels["demo_records"]
         labels["footer"] = labels["demo_footer"]
@@ -263,7 +267,7 @@ def render(papers, meta, config=None, overview=None):
     overview = _checked_overview(papers, config, overview, language)
     local_date, timezone = str(meta.get("local_date", "")), str(meta.get("timezone", ""))
     window_start = str(meta.get("publication_start") or meta.get("window_start", ""))
-    window_end = str(meta.get("local_date") or meta.get("window_end", ""))
+    window_end = str(meta.get("publication_end") or meta.get("local_date") or meta.get("window_end", ""))
     window = f'{labels["window"]}: {window_start} – {window_end}'
     date_line = local_date + (" · " + timezone if timezone else "")
     lines = [labels["title"] + " | " + date_line, window, ""]
@@ -273,6 +277,10 @@ def render(papers, meta, config=None, overview=None):
         lines += [notice, ""]
         body.append('<tr><td style="padding:18px 36px;background:#fff0c5;color:#76531c;font-size:13px;line-height:1.7"><strong>' + escape(notice) + '</strong></td></tr>')
 
+    if meta.get("partial_coverage"):
+        notice = "有限检索：结果并非该时段的完整文献清单。" if is_chinese(language) else "Bounded retrieval: this is not an exhaustive bibliography for the window."
+        lines += [notice, ""]
+        body.append('<tr><td style="padding:18px 36px;background:#fff0c5;color:#76531c;font-size:13px">' + escape(notice) + '</td></tr>')
     if meta.get("failure"):
         lines.append(labels["failure"])
         lines.extend("- " + str(error) for error in meta.get("errors", []))

@@ -38,7 +38,7 @@ def initialize(args, input_fn=input):
     zone = answer(args.timezone, "IANA timezone", "Asia/Shanghai")
     at = answer(args.at, "Daily send time HH:MM", "08:30")
     topics = [{"id": f"topic-{i}", "name": topic, "queries": [topic], "include_any": [], "include_all": [], "exclude_any": []} for i, topic in enumerate(directions, 1)]
-    config = {"recipient": recipient, "language": language, "timezone": zone, "topics": topics, "schedule": {"time": at, "weekdays": list(range(7)), "catch_up": True}, "images": {"mode": "off", "max_per_paper": 3}, "llm": {"enabled": False}, "mail": {"enabled": False}}
+    config = {"recipient": recipient, "language": language, "timezone": zone, "topics": topics, "schedule": {"time": at, "weekdays": list(range(7)), "catch_up": True}, "images": {"mode": "off", "max_per_paper": 3}, "llm": {"enabled": False, "plan_queries": True, "screen_candidates": True}, "mail": {"enabled": False}}
     checked = copy.deepcopy(DEFAULTS)
     for key, value in config.items():
         if isinstance(value, dict):
@@ -55,15 +55,15 @@ def initialize(args, input_fn=input):
         path.chmod(0o600)
     except OSError:
         pass
-    return {"status": "configured", "path": str(path.resolve()), "next": "preview (offline demo), then configure and enable the required LLM before run (live dry-run). Configure SMTP separately before explicit delivery.", "schedule_installed": False}
+    return {"status": "configured", "path": str(path.resolve()), "next": "preview for the offline demo; select a logged-in Codex/Claude CLI or compatible API model for the full pipeline. Configure SMTP for automatic delivery or use run --prepare-connector for an external mail adapter.", "schedule_installed": False}
 
 
 def model_readiness(config):
     try:
         require_llm(config)
     except ValueError as exc:
-        return {"llm_required": True, "live_ready": False, "live_blocker": str(exc)}
-    return {"llm_required": True, "live_ready": True, "live_blocker": None}
+        return {"llm_required": True, "live_ready": False, "live_blocker": str(exc), "readiness_note": "Static configuration only; login, runtime storage, quota and provider calls are not tested."}
+    return {"llm_required": True, "live_ready": True, "live_blocker": None, "readiness_note": "Static configuration only; login, runtime storage, quota and provider calls are not tested."}
 
 
 def _select(configs, profile):
@@ -135,7 +135,20 @@ def _main(argv=None):
     preview.add_argument("--language", help="Override demo language")
     for command, help_ in (("run", "Retrieve and compose now"), ("tick", "Run only due profiles, once per local day when sending"), ("schedule", "Foreground minute scheduler; keep process alive, Ctrl-C to stop")):
         runner = sub.add_parser(command, help=help_ + "; dry-run by default")
+        if command == "run":
+            runner.add_argument("--prepare-connector", action="store_true", help="Run the real pipeline and freeze a connector envelope; no mail is sent")
         runner.add_argument("--send", action="store_true", help="Explicit delivery; still requires mail.enabled=true and SMTP configuration")
+    begin = sub.add_parser("begin-send", help="Claim an immutable pipeline connector outbox before one authorized external mail call")
+    begin.add_argument("digest_id")
+    confirm = sub.add_parser("confirm-sent", help="Import a connector provider receipt; uncertain outcomes never trigger resend")
+    confirm.add_argument("digest_id")
+    confirm.add_argument("--receipt", required=True)
+    library = sub.add_parser("library", help="List/search the selected profile's durable literature index; no model or mail")
+    library.add_argument("--query", help="Case-insensitive title/abstract/author text")
+    library.add_argument("--limit", type=int, default=50)
+    exporter = sub.add_parser("library-export", help="Export saved literature as RIS/BibTeX; no model or mail")
+    exporter.add_argument("--query")
+    exporter.add_argument("--output", required=True, help="New directory for reference exports; existing files are never overwritten")
     sub.add_parser("status", help="Inspect only this audience's delivery ledger")
     resolver = sub.add_parser("resolve", help="Resolve an uncertain send after checking provider records")
     resolver.add_argument("digest_id")
@@ -150,11 +163,23 @@ def _main(argv=None):
             from .configure_model import configure_model
             return _report(configure_model(args))
         configs = _select(load_configs(args.config), args.profile)
+        if args.command in ("begin-send", "confirm-sent"):
+            if len(configs) != 1:
+                raise ValueError("Select exactly one profile with --profile for connector commands")
+            from .connector_delivery import begin_send, confirm_sent, read_json
+            result = begin_send(configs[0], args.digest_id) if args.command == "begin-send" else confirm_sent(configs[0], args.digest_id, read_json(args.receipt))
+            return _report(result)
         if args.command == "validate":
-            return _report([{"status": "valid", "profile_id": c["profile_id"], "recipient": c["recipient"], "language": c["language"], "timezone": c["timezone"], "next_run": next_run(c), "mail_enabled": c["mail"]["enabled"], "llm_enabled": c["llm"]["enabled"], **model_readiness(c), "missing_environment_variables": [v for section in ("mail", "llm") if c[section]["enabled"] for k, v in c[section].items() if k.endswith("_env") and not os.environ.get(v)], "schedule_installed": False} for c in configs])
+            return _report([{"status": "valid", "profile_id": c["profile_id"], "recipient": c["recipient"], "language": c["language"], "timezone": c["timezone"], "next_run": next_run(c), "mail_enabled": c["mail"]["enabled"], "llm_enabled": c["llm"]["enabled"], "model_backend": c["llm"].get("backend", "api"), **model_readiness(c), "missing_environment_variables": [v for section in ("mail", "llm") if c[section]["enabled"] and (section != "llm" or c["llm"].get("backend", "api") == "api") for k, v in c[section].items() if k.endswith("_env") and not os.environ.get(v)], "schedule_installed": False} for c in configs])
         if args.command == "preview":
             from .demo import preview
             return _report([preview(c, args.language) for c in configs])
+        if args.command == "run" and args.prepare_connector:
+            if args.send:
+                raise ValueError("Choose either --send (SMTP) or --prepare-connector, not both")
+            if len(configs) != 1:
+                raise ValueError("Select exactly one profile with --profile for connector preparation")
+            return _report(run(configs[0], prepare_connector=True))
         if args.command in ("run", "tick"):
             return _report(_many(configs, args.command, args.send))
         if args.command == "schedule":
@@ -189,7 +214,7 @@ def _main(argv=None):
                     _report(_many(due, "tick", args.send, now))
                 previews = {k for k in previews if (now.date() - k[1]).days < 2}
                 time.sleep(60)
-        if args.command in ("send", "resolve") and len(configs) != 1:
+        if args.command in ("send", "resolve", "library-export") and len(configs) != 1:
             raise ValueError("Select exactly one profile with --profile for send/resolve")
         results = []
         for config in configs:
@@ -198,7 +223,25 @@ def _main(argv=None):
             state = State(config["state_path"], scope=state_scope(config))
             try:
                 with state.lock():
-                    if args.command == "status":
+                    if args.command == "library":
+                        from .library import list_papers
+                        result = {"profile_id": config["profile_id"], "papers": list_papers(state, args.query, args.limit)}
+                    elif args.command == "library-export":
+                        from .library import export_papers
+                        files = export_papers(state, args.query)
+                        directory = Path(args.output)
+                        directory.mkdir(parents=True, exist_ok=True)
+                        if any((directory / item["filename"]).exists() for item in files):
+                            raise ValueError("Library exports already exist; choose a new output directory")
+                        paths = []
+                        for item in files:
+                            path = directory / item["filename"]
+                            with path.open("xb") as handle:
+                                handle.write(item["content"].encode("utf-8"))
+                            path.chmod(0o600)
+                            paths.append(str(path.resolve()))
+                        result = {"profile_id": config["profile_id"], "status": "exported", "paths": paths}
+                    elif args.command == "status":
                         result = {"profile_id": config["profile_id"], "checkpoint": state.checkpoint(), "unresolved": state.unresolved(), "model_failure_pause": state.model_failure_pause(), "deliveries": state.recent()}
                     elif args.command == "resolve":
                         state.resolve(args.digest_id, args.decision)

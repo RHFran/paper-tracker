@@ -38,6 +38,8 @@ def send_smtp(payload, config, state, digest_id, smtp_ssl=smtplib.SMTP_SSL, smtp
     """Injectable adapter. Unknown post-DATA outcomes are never automatically retried."""
     require_llm(config)
     require_analysis_payload(payload)
+    if payload.get("transport") == "connector":
+        raise MailSetupError("Connector outbox must use the connector receipt workflow, not SMTP")
     if not valid_email(payload.get("recipient")) or any(c in payload.get("subject", "") for c in "\r\n"):
         raise MailSetupError("Invalid recipient or mail header")
     local_today = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(config["timezone"])).date().isoformat()

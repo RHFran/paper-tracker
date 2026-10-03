@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 DEFAULTS = {
     "profile_id": "default",
+    "retrieval_policy": "complete",
     "recipient": "researcher@example.org",
     "timezone": "Asia/Shanghai",
     "language": "zh-CN",
@@ -29,10 +30,10 @@ DEFAULTS = {
     "max_papers_per_track": 20,
     "images": {"mode": "off", "max_per_paper": 3},
     "figure_catalog": {},
-    "llm": {"enabled": False, "base_url_env": "LITERATURE_LLM_BASE_URL", "api_key_env": "LITERATURE_LLM_API_KEY", "model_env": "LITERATURE_LLM_MODEL", "max_evidence_chars": 60000},
+    "llm": {"enabled": False, "backend": "api", "cli_executable": "", "cli_model": "", "cli_timeout_seconds": 180, "screen_candidates": False, "plan_queries": False, "max_screen_candidates": 50, "base_url_env": "LITERATURE_LLM_BASE_URL", "api_key_env": "LITERATURE_LLM_API_KEY", "model_env": "LITERATURE_LLM_MODEL", "max_evidence_chars": 60000},
     "mail": {"enabled": False, "host_env": "LITERATURE_SMTP_HOST", "port": 465, "security": "ssl", "user_env": "LITERATURE_SMTP_USER", "password_env": "LITERATURE_SMTP_PASSWORD", "from_env": "LITERATURE_MAIL_FROM"},
 }
-PROFILE_FIELDS = {"llm", "id", "recipient", "timezone", "language", "topics", "schedule", "images", "publication_window_days", "include_preprints", "max_papers_per_track"}
+PROFILE_FIELDS = {"retrieval_policy", "llm", "id", "recipient", "timezone", "language", "topics", "schedule", "images", "publication_window_days", "include_preprints", "max_papers_per_track"}
 ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
@@ -86,6 +87,8 @@ def validate_config(c):
         raise ValueError("timezone must be an installed IANA timezone, e.g. Asia/Shanghai") from None
     if not isinstance(c["language"], str) or not re.fullmatch(r"[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*", c["language"]):
         raise ValueError("language must be a language tag, e.g. zh-CN, en, de or ja")
+    if c.get("retrieval_policy", "complete") not in ("complete", "bounded"):
+        raise ValueError("retrieval_policy must be complete or bounded")
     if not isinstance(c["sources"], list) or not c["sources"] or any(not isinstance(source, str) for source in c["sources"]) or set(c["sources"]) - {"crossref", "europepmc", "arxiv"}:
         raise ValueError("sources must contain crossref, europepmc and/or arxiv")
     if len(c["sources"]) != len(set(c["sources"])):
@@ -101,6 +104,19 @@ def validate_config(c):
         for name, value in c[key].items():
             if name.endswith("_env") and (not isinstance(value, str) or not ENV_NAME.fullmatch(value)):
                 raise ValueError(f"{key}.{name} must be an environment variable name, never a secret")
+    llm = c["llm"]
+    if llm.get("backend", "api") not in ("api", "codex", "claude"):
+        raise ValueError("llm.backend must be api, codex or claude")
+    for name in ("cli_executable", "cli_model"):
+        value = llm.get(name, "")
+        if not isinstance(value, str) or len(value) > 2000 or any(ord(char) < 32 for char in value):
+            raise ValueError("llm." + name + " must be a single-line string")
+    _positive(llm.get("cli_timeout_seconds", 180), "llm.cli_timeout_seconds", 1800)
+    _positive(llm.get("max_screen_candidates", 50), "llm.max_screen_candidates", 200)
+    if type(llm.get("plan_queries", False)) is not bool:
+        raise ValueError("llm.plan_queries must be true or false")
+    if type(llm.get("screen_candidates", False)) is not bool:
+        raise ValueError("llm.screen_candidates must be true or false")
     _positive(c["llm"]["max_evidence_chars"], "llm.max_evidence_chars", 500000)
     if c["llm"]["max_evidence_chars"] < 100:
         raise ValueError("llm.max_evidence_chars must be at least 100")

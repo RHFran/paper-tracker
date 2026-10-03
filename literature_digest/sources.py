@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from html.parser import HTMLParser
 import ipaddress
 import re
 import unicodedata
@@ -44,6 +45,19 @@ def _literal_query(value, field):
     return field + ':"' + " ".join(words) + '"'
 
 
+def _arxiv_query(value):
+    """Require literal terms to co-occur, rather than one long exact phrase.
+
+    Provider syntax in user text is never executable: punctuation is removed
+    and even words such as OR remain quoted search terms. Separate configured
+    queries supply the union of alternative word combinations.
+    """
+    words = re.findall(r"[^\W_]+", unicodedata.normalize("NFKC", value), re.UNICODE)
+    if not words:
+        raise ValueError("检索短语必须包含文字或数字")
+    return " AND ".join('all:"' + word + '"' for word in dict.fromkeys(words))
+
+
 def _date_window(start, end):
     left, right = date.fromisoformat(start), date.fromisoformat(end)
     if left > right:
@@ -72,6 +86,22 @@ def provenance(source, params, api_url):
     return {"source": source, "api_url": api_url, "query": params, "retrieved_at": datetime.now(timezone.utc).isoformat()}
 
 
+def _source_report(source, papers, queries, config):
+    truncated = any(query.get("truncated", False) for query in queries)
+    report = {"source": source, "complete": all(query["complete"] for query in queries),
+              "records_before_dedup": len(papers), "queries": queries,
+              "retrieval_policy": config.get("retrieval_policy", "complete"), "truncated": truncated}
+    if truncated:
+        report["coverage_note"] = ("Bounded query retrieval: remaining source results were not fetched. "
+                                   "Results are not an exhaustive literature review.")
+    return report
+
+
+def _bounded_query(config, details):
+    return {**details, "complete": False, "truncated": True,
+            "reason": "configured_max_pages_per_query", "page_limit": config["max_pages_per_query"]}
+
+
 def crossref_paper(x, context) -> Paper:
     title = clean(" ".join(x.get("title", [])))
     doi = normalize_doi(x.get("DOI"))
@@ -96,27 +126,37 @@ def fetch_crossref(http, config, start, end, initial):
     papers, queries = [], []
     date_type = "pub" if initial else "index"
     for track, query in _source_queries(config, "crossref"):
-        cursor = "*"
+        cursor, count, total = "*", 0, None
         for page in range(config["max_pages_per_query"]):
             params = {"query": query, "filter": f"from-{date_type}-date:{start},until-{date_type}-date:{end}", "rows": config["page_size"], "cursor": cursor}
+            if config.get("retrieval_policy") == "bounded":
+                params.update(sort="score", order="desc")
             if config["contact_email"]:
                 params["mailto"] = config["contact_email"]
             message = http.json(CROSSREF, params=params).get("message", {})
             if not isinstance(message, dict) or not isinstance(message.get("items"), list):
                 raise RetrievalError("Crossref 响应缺少 items")
             items = message["items"]
+            count += len(items)
+            if isinstance(message.get("total-results"), int) and not isinstance(message["total-results"], bool):
+                total = message["total-results"]
             context = {**provenance("crossref", params, CROSSREF), "topic_id": track}
             papers.extend(crossref_paper(x, context) for x in items if x.get("title"))
-            if len(items) < config["page_size"]:
-                queries.append({"track": track, "query": query, "pages": page + 1, "date_field": date_type, "complete": True})
+            if len(items) < config["page_size"] or count == total:
+                queries.append({"track": track, "query": query, "pages": page + 1, "date_field": date_type, "complete": True,
+                                "records_retrieved": count, "total_results": total})
                 break
             next_cursor = message.get("next-cursor")
             if not next_cursor or next_cursor == cursor:
                 raise RetrievalError("Crossref 分页游标缺失/重复，检索不完整")
             cursor = next_cursor
         else:
-            raise RetrievalError(f"Crossref 查询达到分页上限，不能声称完整：{query}")
-    return papers, {"source": "crossref", "complete": True, "records_before_dedup": len(papers), "queries": queries}
+            if config.get("retrieval_policy") != "bounded":
+                raise RetrievalError(f"Crossref 查询达到分页上限，不能声称完整：{query}")
+            queries.append(_bounded_query(config, {"track": track, "query": query,
+                "pages": config["max_pages_per_query"], "date_field": date_type,
+                "records_retrieved": count, "total_results": total, "order": "relevance score descending"}))
+    return papers, _source_report("crossref", papers, queries, config)
 
 
 def epmc_paper(x, context) -> Paper:
@@ -150,15 +190,20 @@ def fetch_europepmc(http, config, start, end, initial):
             context = {**provenance("europepmc", params, EPMC + "/search"), "topic_id": track}
             papers.extend(epmc_paper(x, context) for x in items if x.get("title") and x.get("id"))
             if count >= int(data["hitCount"]):
-                queries.append({"track": track, "query": query, "pages": page + 1, "complete": True})
+                queries.append({"track": track, "query": query, "pages": page + 1, "complete": True,
+                                "records_retrieved": count, "total_results": int(data["hitCount"])})
                 break
             next_cursor = data.get("nextCursorMark")
             if not items or not next_cursor or next_cursor == cursor:
                 raise RetrievalError("Europe PMC 分页提前结束，检索不完整")
             cursor = next_cursor
         else:
-            raise RetrievalError(f"Europe PMC 查询达到分页上限：{track}")
-    return papers, {"source": "europepmc", "complete": True, "records_before_dedup": len(papers), "queries": queries}
+            if config.get("retrieval_policy") != "bounded":
+                raise RetrievalError(f"Europe PMC 查询达到分页上限：{track}")
+            queries.append(_bounded_query(config, {"track": track, "query": query,
+                "pages": config["max_pages_per_query"], "date_field": field,
+                "records_retrieved": count, "total_results": int(data["hitCount"]), "order": "source default relevance"}))
+    return papers, _source_report("europepmc", papers, queries, config)
 
 
 
@@ -211,7 +256,7 @@ def fetch_arxiv(http, config, start, end, initial):
     # deliberately based on first submission, never a revision as a new paper.
     field = "submittedDate"
     for track, topic in _source_queries(config, "arxiv"):
-        query = f"({_literal_query(topic, 'all')}) AND {field}:[{left:%Y%m%d}0000 TO {right:%Y%m%d}2359]"
+        query = f"({_arxiv_query(topic)}) AND {field}:[{left:%Y%m%d}0000 TO {right:%Y%m%d}2359]"
         seen_ids, count, expected_total = set(), 0, None
         for page in range(config["max_pages_per_query"]):
             params = {"search_query": query, "start": count, "max_results": min(config["page_size"], 2000),
@@ -243,13 +288,18 @@ def fetch_arxiv(http, config, start, end, initial):
             if count > total:
                 raise RetrievalError("arXiv 记录数超过声明总数")
             if count == total:
-                queries.append({"track": track, "query": query, "pages": page + 1, "date_field": field, "complete": True})
+                queries.append({"track": track, "query": query, "pages": page + 1, "date_field": field, "complete": True,
+                                "records_retrieved": count, "total_results": total})
                 break
             if not entries:
                 raise RetrievalError("arXiv 分页提前结束，检索不完整")
         else:
-            raise RetrievalError(f"arXiv 查询达到分页上限：{track}")
-    return papers, {"source": "arxiv", "complete": True, "records_before_dedup": len(papers), "queries": queries}
+            if config.get("retrieval_policy") != "bounded":
+                raise RetrievalError(f"arXiv 查询达到分页上限：{track}")
+            queries.append(_bounded_query(config, {"track": track, "query": query,
+                "pages": config["max_pages_per_query"], "date_field": field,
+                "records_retrieved": count, "total_results": total, "order": "first submission date descending"}))
+    return papers, _source_report("arxiv", papers, queries, config)
 
 
 def safe_figure_url(value):
@@ -390,8 +440,146 @@ def _jats_figures(paper, root, xml_url, config):
             paper.figures.append(normalized)
 
 
+def _arxiv_fulltext_id(paper):
+    """Use a known arXiv identity, preserving an explicitly retrieved version.
+
+    Never fetch a provider-supplied URL or a related journal DOI. After merging
+    multiple metadata sources, prefer the highest observed version of this same
+    preprint; do not guess a version or follow an arbitrary external link.
+    """
+    identifier = normalize_arxiv_id(paper.arxiv_id)
+    if not identifier and paper.source.lower() == "arxiv":
+        identifier = normalize_arxiv_id(paper.source_id)
+    if not identifier:
+        identifier = normalize_arxiv_id(paper.doi)
+    if not identifier:
+        return ""
+    candidates = [paper.arxiv_id, paper.url]
+    if paper.source.lower() == "arxiv":
+        candidates.append(paper.source_id)
+    candidates.extend(item.get("version_id", "") for item in paper.provenance
+                      if item.get("source") == "arxiv")
+    versions = []
+    for candidate in candidates:
+        if normalize_arxiv_id(candidate) != identifier:
+            continue
+        path = urlsplit(candidate).path if candidate.lower().startswith(("http://", "https://")) else candidate
+        match = re.search(r"v([1-9]\d*)(?:\.pdf)?$", path, re.I)
+        if match:
+            versions.append(int(match.group(1)))
+    return identifier + ("v" + str(max(versions)) if versions else "")
+
+
+class _ArxivHTMLBody(HTMLParser):
+    """Extract visible LaTeXML article content with no third-party dependency.
+
+    Ordinary HTML/abstract pages, API XML, error pages, and large bibliographies
+    are not a full-text body. Require the publisher's article marker and enough
+    prose outside abstract/front matter, tables, captions, and references.
+    """
+
+    _VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+    _SKIP_TAGS = {"head", "header", "footer", "nav", "script", "style", "noscript", "template", "form", "button", "select", "textarea", "svg", "annotation", "annotation-xml"}
+    _SKIP_CLASSES = {"ltx_abstract", "ltx_authors", "ltx_creator", "ltx_date", "ltx_title_document",
+                     "ltx_keywords", "ltx_classification", "ltx_bibliography", "ltx_acknowledgements",
+                     "ltx_page_header", "ltx_page_footer", "ltx_page_navbar", "ltx_TOC", "ltx_toclist"}
+    _BLOCKS = {"article", "main", "section", "div", "p", "li", "h1", "h2", "h3", "h4", "h5", "h6",
+               "blockquote", "pre", "table", "tr", "td", "th", "caption", "figure", "figcaption", "br", "hr"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack = []
+        self.parts, self.prose = [], []
+        self.documents, self.closed_documents = 0, 0
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        classes = set((attributes.get("class") or "").split())
+        # Stack frames: tag, article, skip, prose, non-prose, root marker.
+        parent = self.stack[-1] if self.stack else ("", False, False, False, False, False)
+        root = tag in {"article", "div", "main", "body"} and "ltx_document" in classes and not parent[1]
+        inside = parent[1] or root
+        skip = (parent[2] or tag in self._SKIP_TAGS or bool(classes & self._SKIP_CLASSES)
+                or "hidden" in attributes or (attributes.get("aria-hidden") or "").lower() == "true"
+                or (attributes.get("role") or "").lower() in {"navigation", "contentinfo", "doc-abstract", "doc-bibliography"})
+        non_prose = parent[4] or tag in {"table", "figure", "figcaption", "caption", "math"}
+        prose = not non_prose and (parent[3] or tag == "p" or "ltx_para" in classes)
+        if root and not skip:
+            self.documents += 1
+        if inside and not skip and tag in self._BLOCKS:
+            self.parts.append(" ")
+            if prose:
+                self.prose.append(" ")
+        if tag not in self._VOID:
+            if len(self.stack) >= 2048:
+                raise RetrievalError("arXiv HTML 嵌套层数过多")
+            self.stack.append((tag, inside, skip, prose, non_prose, root and not skip))
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag not in self._VOID:
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag):
+        for index in range(len(self.stack) - 1, -1, -1):
+            frame = self.stack[index]
+            if frame[0] != tag:
+                continue
+            if frame[1] and not frame[2] and tag in self._BLOCKS:
+                self.parts.append(" ")
+                if frame[3]:
+                    self.prose.append(" ")
+            if frame[5]:
+                self.closed_documents += 1
+            del self.stack[index:]
+            break
+
+    def handle_data(self, data):
+        if self.stack and self.stack[-1][1] and not self.stack[-1][2]:
+            self.parts.append(data)
+            if self.stack[-1][3]:
+                self.prose.append(data)
+
+    def body_text(self):
+        # Do not use models.clean: these strings have already been HTML-parsed,
+        # and scientific text such as "p < 0.05" must not be stripped as a tag.
+        text = re.sub(r"\s+", " ", "".join(self.parts)).strip()
+        prose = re.sub(r"\s+", " ", "".join(self.prose)).strip()
+        if self.documents != 1 or self.closed_documents != 1:
+            raise RetrievalError("arXiv HTML 缺少完整且唯一的论文正文")
+        if len(text) < 500 or len(prose) < 300:
+            raise RetrievalError("arXiv HTML 正文不足，保留摘要证据等级")
+        return text
+
+
+def _enrich_arxiv_full_text(paper, http, identifier):
+    url = "https://arxiv.org/html/" + quote(identifier, safe="/")
+    try:
+        raw = http.request(url, headers={"Accept": "text/html"}, interval=3.0)
+        parser = _ArxivHTMLBody()
+        parser.feed(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+        parser.close()
+        text = parser.body_text()
+        paper.full_text, paper.full_text_url = text, url
+        paper.evidence_level = "全文正文（arXiv HTML 转换；不含图像像素、外部补充材料；公式/表格格式可能丢失）"
+        paper.provenance.append({"source": "arxiv_fulltext", "api_url": url, "version_id": identifier,
+                                 "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                                 "format": "html", "extracted_characters": len(text),
+                                 "extraction": "LaTeXML article body; excludes abstract, navigation, scripts and bibliography"})
+        return True
+    except (RetrievalError, UnicodeError) as exc:
+        paper.warnings.append(f"arXiv 全文获取失败，保留已有正文或降级到摘要/元数据：{exc}")
+        if not paper.full_text:
+            paper.evidence_level = "仅摘要" if paper.abstract else "仅元数据"
+        return False
+
+
 def enrich_full_text(paper, http, config=None):
     config = config or {}
+    identifier = _arxiv_fulltext_id(paper)
+    if identifier and config.get("fetch_full_text", True):
+        if _enrich_arxiv_full_text(paper, http, identifier):
+            return
     if not normalize_pmcid(paper.pmcid) or not paper.open_access:
         return
     url = EPMC + "/" + quote(paper.pmcid, safe="") + "/fullTextXML"

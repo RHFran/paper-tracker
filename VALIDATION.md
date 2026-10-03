@@ -2,8 +2,36 @@
 
 Validated on 2026-10-03 in a Linux cloud workspace with Python 3.12.14. This
 record covers local verification of the integrated source before publication.
-No real provider request, model charge, SMTP message or installed background
-scheduler was part of these checks.
+No SMTP message or installed background scheduler was part of these checks.
+The historical v2.1.0 baseline below is separate from the current correction.
+
+## Current program-workflow correction (2026-10-03)
+
+- 287 offline tests passed with `python -m unittest discover -s tests -v`, plus
+  compile checks and the JavaScript demo interaction smoke test.
+- New coverage includes Codex/Claude argument isolation, stdin evidence, strict
+  JSON/anchor rejection, timeout cleanup (POSIX and Windows branches), sanitized
+  failure categories, bounded query plans, semantic screening/topic assignment,
+  paid-retry pauses, arXiv extraction and bounded-source disclosure.
+- Literature tests cover profile isolation, identifier enrichment, searches and
+  RIS/BibTeX exports independent of sending. Pipeline tests preserve immutable
+  content-addressed audit copies across repeated same-day previews.
+- Connector tests cover immutable output, no mail during preparation, one-shot
+  claims, stale config and tamper rejection, audience/hash binding, matching
+  provider IDs, idempotent confirmed receipt import and pending ambiguity.
+- The installed Codex CLI was detected and reported an existing ChatGPT login.
+  Actual smoke invocations failed during runtime initialization with a read-only
+  filesystem error, including after documented ephemeral runtime-storage options.
+  No successful model inference or end-to-end live digest was established here.
+- Claude Code was not installed in this workspace; its adapter is mock-tested,
+  not live-certified. arXiv source requests were independently throttled; source
+  availability and complete live retrieval remain deployment checks.
+- No real email was sent, no receipt fabricated, no credentials copied and no
+  hand-authored research imported as a successful program run. Native Windows,
+  live model compatibility, SMTP and unattended hosting require actual deployment
+  validation; CI checks the published revision separately.
+
+## Historical v2.1.0 checks
 
 ## Passed locally
 

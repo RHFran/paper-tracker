@@ -3,13 +3,15 @@
 [中文](platform-setup_中文.md) · [Home](../README.md) · [Configuration guide](user-guide.md)
 
 **Fastest route: give the repository and the prompt below to your coding agent.**
-Smart Paper Tracker is the same Python program whichever agent helps install it. You
-still choose a machine, enter a model API key locally, and configure SMTP before
-mail delivery. An agent conversation does not automatically provide an always-on
-server, an API allowance, or a sender mailbox.
+Smart Paper Tracker is the same Python program whichever agent helps install it.
+The program retrieves, filters, analyzes, deduplicates and schedules the papers.
+Choose an installed, signed-in Codex/Claude Code CLI or an independent model API;
+CLI mode does not require a second API key. Choose SMTP or an authorized connected
+email tool for delivery. An agent conversation alone does not provide an always-on
+machine, usable CLI login, model allowance or sender mailbox.
 
-Live digests **require an LLM**. Your provider may charge for input/output tokens;
-cost depends on the model, selected paper count and amount of evidence supplied.
+Live digests **require an LLM**. Both CLI and API modes consume model/account usage;
+cost and limits depend on your plan, model, paper count and evidence supplied.
 Setup, validation and the clearly labeled synthetic preview make **no model calls**.
 A live dry run may call the LLM and can cost money even though it sends no email.
 
@@ -23,9 +25,12 @@ Replace the bracketed values. Do not include passwords or API keys.
 > setup script in an isolated virtual environment, preserving existing private
 > configuration. My topics are [topics], language [language], timezone [IANA
 > timezone], and schedule [weekdays or specific dates, local time]. Use separate
-> subscriptions when topics need different schedules or models. Guide me through
-> configure-model so I enter the provider, model and hidden key directly in my
-> local terminal. Explain token costs before any live call. Show the offline
+> subscriptions when topics need different schedules or models. Check for an
+> installed, signed-in Codex or Claude Code CLI on that machine, then configure
+> the program to use my chosen backend. Use --skip-model for CLI setup; only use
+> configure-model if I choose an independent API, with hidden local key entry.
+> Let the program retrieve and analyze papers itself. Explain usage and costs
+> before any live call. Show the offline
 > preview first. Ask before a paid live test, real email, or enabling a persistent
 > scheduler. Keep secrets out of chat, source control, command arguments and logs.
 
@@ -45,8 +50,9 @@ Replace the bracketed values. Do not include passwords or API keys.
   [computer connection guide](https://learn.chatgpt.com/docs/dots/computers-and-apps).
   An install on the dot's cloud computer is separate from an install on yours.
 
-The agent should hand you the hidden-key entry step. Never paste a real key into
-these prompts. This is a source-based workflow, not a published Smart Paper Tracker MCP
+For API mode, the agent should hand you the hidden-key entry step. For CLI mode,
+sign in through the CLI's own supported flow; do not copy its credentials into the
+project. Never paste a real key into these prompts. This is a source-based workflow, not a published Smart Paper Tracker MCP
 server or a guaranteed one-click installation inside every assistant app.
 
 ## 2. Run the setup script yourself
@@ -96,7 +102,25 @@ JSON remain relative to the JSON file. Use absolute paths for a server service.
 
 ## 3. Configure your provider, model and key
 
-If you skipped the first-run wizard, run:
+### Choose CLI or API first
+
+For an already-installed, logged-in CLI, skip the API wizard with setup's
+`--skip-model` / `-SkipModel`, then set `llm.enabled: true` and
+`llm.backend: "codex"` or `"claude"` in your private configuration. An empty
+`cli_model` uses that CLI's default model; `cli_executable` optionally selects its
+command path. Keep the execution user and CLI login consistent. The program calls
+the CLI for structured analysis, and does not import a host-written research
+report. Enable `llm.plan_queries` and `llm.screen_candidates` for model-assisted
+query planning and relevance screening; these opt-in stages add model calls.
+
+[Backend options, readiness checks and connector workflow](model-backends.md)
+explain the defaults, usage limits and delivery choices. CLI mode does not require
+API credentials in `.env`. SMTP secrets, if using SMTP, remain separate.
+
+### Independent API: the existing local wizard
+
+The remainder of this section describes `llm.backend: "api"`, the default when
+`backend` is omitted. If you skipped the first-run API wizard, run:
 
 ```bash
 bash scripts/run.sh --config config.json configure-model
@@ -117,7 +141,8 @@ The actual wizard asks for:
 
 It enables `llm` for the selected subscription, puts only environment-variable
 references in JSON, and stores the values in `.env` next to the config. It does
-not test your key against the network, charge tokens, or enable SMTP. Existing
+not test your key against the network, charge tokens, or enable SMTP. It is the
+API setup path, not a CLI sign-in wizard. Existing
 models/slots are protected: replacement requires `--replace` plus confirmation.
 `--secrets-file .env.work` chooses a different ignored secret filename.
 
@@ -146,7 +171,7 @@ selection, not automatic key rotation or failover across providers.
 
 ### Provider presets and compatibility
 
-Smart Paper Tracker calls `<base URL>/chat/completions` with JSON-object output. Use a
+In API mode, Smart Paper Tracker calls `<base URL>/chat/completions` with JSON-object output. Use a
 model supporting that request format. Native Anthropic Messages, Responses-only,
 and streaming-only endpoints are not interchangeable with it. A preset is a
 configuration starting point, not evidence that a particular model/key works.
@@ -162,8 +187,8 @@ configuration starting point, not evidence that a particular model/key works.
 Check the current model list, price and JSON support in your chosen provider
 console. Qwen keys/endpoints must match the region and workspace; use the
 pay-as-you-go/backend API route, not a coding-plan key restricted to interactive
-coding tools. A ChatGPT/Claude subscription or coding-agent login is not
-necessarily an API credential or token budget for this application.
+coding tools. A CLI login is not an API credential: choose the `codex` or `claude`
+backend to use a supported CLI login instead of trying to place it in an API key slot.
 
 ### Load saved credentials or prompt without saving
 
@@ -196,13 +221,22 @@ requires an interactive terminal; it is unsuitable for an unattended service.
 
 ## 4. Enable email and unattended operation deliberately
 
-After checking a real dry-run report, configure an authorized SMTP account and
+After checking a real dry-run report, choose a delivery path. Model and mail
+backends are independent. The instructions below cover direct SMTP delivery.
+For an authorized connected email tool, use the [connector workflow](model-backends.md#connector-send-lifecycle):
+`run --prepare-connector`, claim with `begin-send`, send once through the external
+tool, and record its confirmed receipt with `confirm-sent`. Preparation ignores
+SMTP `mail.enabled` and needs no SMTP credentials. Only `run` supports connector
+preparation; the host must orchestrate and schedule those external tool calls.
+The built-in `tick` / `schedule` sending path remains SMTP.
+
+For SMTP, configure an authorized account and
 sender using the mail variables in [`.env.example`](../.env.example), then set
 `mail.enabled` to `true`. The recipient alone cannot send email: the sender still
 needs working SMTP credentials. Keep credentials out of command arguments.
 
 ```bash
-# Explicit one-time real email (LLM API use may incur charges):
+# Explicit one-time real email (CLI/API model use may incur charges):
 bash scripts/run.sh --env-file .env --config config.json run --send
 # Explicit foreground schedule, checks each profile every minute:
 bash scripts/run.sh --env-file .env --config config.json schedule --send
@@ -212,6 +246,9 @@ Windows uses the same flags through `run.ps1`. `Ctrl+C` stops the foreground
 scheduler; closing the terminal/rebooting stops it. Without `--send`, `run`,
 `tick` and `schedule` stay in live dry-run mode, which can still incur model costs.
 Never run a foreground scheduler and an OS scheduler for the same config together.
+For a CLI model backend, the worker must run under the logged-in CLI user with its
+executable on `PATH` or an explicit `cli_executable` path. Check login freshness
+and account limits; an interactive chat elsewhere cannot keep this worker ready.
 
 - **Linux server:** use an unprivileged account and one service manager. Review
   the [systemd, cron and Docker examples](../examples/README.md). Supply private

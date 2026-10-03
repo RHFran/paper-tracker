@@ -78,8 +78,10 @@ def main(argv=None):
         return exc.returncode or 1
     print("\nReady: offline preview created. No mail was sent and no scheduler was installed.")
     print("Next: edit your topics/schedule, configure the required LLM and optional SMTP, and inspect a live dry run.")
-    print("Linux/macOS: bash scripts/run.sh --env-file <private-.env> --config <your-config> run")
-    print("Windows: .\\scripts\\run.ps1 --env-file <private-.env> --config <your-config> run")
+    print("CLI backend: bash scripts/run.sh --config <your-config> run (configure llm.backend first)")
+    print("API/SMTP secrets, if used: add --env-file <private-.env> before the command")
+    print("Linux/macOS: bash scripts/run.sh --config <your-config> run")
+    print("Windows: .\\scripts\\run.ps1 --config <your-config> run")
     print("Guide: docs/platform-setup.md (English) / docs/platform-setup_中文.md (中文)")
     return 0
 

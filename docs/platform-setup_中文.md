@@ -3,12 +3,13 @@
 [English](platform-setup.md) · [首页](../README_中文.md) · [配置指南](user-guide_中文.md)
 
 **最快的方式：把仓库链接和下面这段提示词交给你的编程 Agent。**
-无论使用哪种 Agent，最终运行的都是同一套 Python 程序。你仍需指定运行机器、
-在本地输入模型 API Key，并在发邮件前配置 SMTP。一次 Agent 对话不会自动提供
-全天在线服务器、模型调用额度或发件邮箱。
+无论使用哪种 Agent，最终运行的都是同一套 Python 程序，由程序自己检索、筛选、分析、
+去重和调度。模型可用执行机器上已安装并登录的 Codex / Claude Code CLI，也可用独立
+API；CLI 模式不要求第二把 API key。投递可选 SMTP 或获授权的已连接邮件工具。
+一次 Agent 对话不会自动提供全天在线主机、可用的 CLI 登录、模型额度或发件邮箱。
 
-真实简报**必须使用大模型**。模型供应商可能按输入/输出 token 收费，费用取决于
-所选模型、论文数量和提供给模型的证据长度。安装、配置校验、明确标注为合成数据的
+真实简报**必须使用大模型**。CLI 和 API 都消耗模型/账户用量，费用与限制取决于套餐、
+模型、论文数量和证据长度。安装、配置校验、明确标注为合成数据的
 离线预览**不调用模型**。真实 dry-run 虽然不发邮件，仍可能调用模型并产生费用。
 
 ## 1. 发给 Agent 的提示词
@@ -20,8 +21,10 @@
 > docs/platform-setup_中文.md，检查源码，再运行仓库提供的安装脚本，使用隔离虚拟
 > 环境并保留已有私有配置。我的研究方向是[主题]，输出语言[语言]，时区[IANA 时区]，
 > 发送计划[星期或具体日期、本地时间]。主题、计划或模型不同时请使用独立订阅。
-> 引导我运行 configure-model，由我在本地终端选择供应商、模型并隐藏输入 Key。
-> 任何真实模型调用前先说明 token 费用，先展示离线预览。付费真实测试、发邮件或
+> 检查执行机器上是否已有安装并登录的 Codex / Claude Code CLI，配置我选择的模型后端。
+> CLI 模式使用 --skip-model 跳过 API 向导；只有我选择独立 API 时才运行 configure-model，
+> 由我在本地隐藏输入 Key。程序自己检索和分析论文。真实模型调用前说明用量和费用，
+> 先展示离线预览。付费真实测试、发邮件或
 > 启用持久定时任务前先让我确认。不要把密钥放进聊天、源码、命令参数或日志。
 
 - **Codex：** 把仓库作为项目打开，或在仓库目录运行 `codex`，粘贴上面的提示词。
@@ -37,7 +40,8 @@
   [连接电脑指南](https://learn.chatgpt.com/docs/dots/computers-and-apps)为准。
   安装在 dot 的云电脑和安装在你的电脑是两回事。
 
-隐藏输入 Key 的步骤应交给你在本地完成，不要把真实 Key 粘贴到提示词里。
+API 模式的隐藏输入 Key 步骤应交给你在本地完成。CLI 模式通过对应 CLI 的官方流程登录，
+不要把其凭据复制到项目中。不要把真实 Key 粘贴到提示词里。
 这是源码安装流程，并非已经上架的 Smart Paper Tracker MCP 服务，也不意味着每种助手
 客户端都能无条件“一键安装”。
 
@@ -82,7 +86,22 @@ JSON 内的状态和输出路径按该 JSON 所在目录解析。服务器服务
 
 ## 3. 输入供应商、模型与 Key
 
-首次安装时跳过了模型向导，可以单独运行：
+### 先选择 CLI 或 API
+
+使用已安装并登录的 CLI，安装时加 `--skip-model` / `-SkipModel` 跳过 API 向导，
+然后在私有配置中设置 `llm.enabled: true`、`llm.backend: "codex"` 或 `"claude"`。
+`cli_model` 留空使用隔离调用的有效 CLI 默认模型，不读取用户配置中的模型；`cli_executable` 可指定命令路径。执行程序的
+系统用户应与 CLI 登录用户一致。程序调用 CLI 获取结构化分析，不需要导入宿主手写报告。
+按需启用 `llm.plan_queries` 和 `llm.screen_candidates`，让模型辅助查询规划和相关性
+筛选；这两个可选阶段会增加模型调用。
+
+[后端选项、就绪检查与邮件工具流程](model-backends.md)说明默认值、用量限制和投递选择。
+CLI 模式的 `.env` 不需要独立 API 凭据；如选 SMTP，SMTP 凭据仍需单独配置。
+
+### 独立 API：保留原有本地向导
+
+本节余下内容适用于 `llm.backend: "api"`，也是省略 `backend` 时的默认值。
+首次安装时跳过了 API 向导，可以单独运行：
 
 ```bash
 bash scripts/run.sh --config config.json configure-model
@@ -128,7 +147,7 @@ bash scripts/run.sh --config config.json --profile battery-daily configure-model
 
 ### 供应商预设及兼容范围
 
-程序请求 `<base URL>/chat/completions`，使用 JSON-object 输出。模型必须支持该
+API 模式请求 `<base URL>/chat/completions`，使用 JSON-object 输出。模型必须支持该
 请求格式；原生 Anthropic Messages、仅支持 Responses 或仅支持流式输出的接口不能
 直接替换。预设只是配置起点，不代表某个模型/Key 已完成真实兼容性测试。
 
@@ -142,7 +161,8 @@ bash scripts/run.sh --config config.json --profile battery-daily configure-model
 
 模型名单、价格和 JSON 支持情况请以供应商当前控制台为准。千问 Key、地区和工作区
 必须匹配；后台服务应使用按量付费/API 通道，不要使用限定交互式编程工具的 Coding
-Plan Key。ChatGPT/Claude 订阅或编程 Agent 登录，不等于本程序的 API Key 或模型额度。
+Plan Key。CLI 登录不是 API key；要使用受支持的 CLI 登录，请选择 `codex` 或 `claude`
+后端，不要把登录凭据填进 API key 槽位。
 
 ### 加载已保存的 Key，或仅临时输入
 
@@ -171,7 +191,14 @@ Windows 将 `bash scripts/run.sh` 替换为 `.\scripts\run.ps1`。若不使用 P
 
 ## 4. 明确选择发邮件与后台运行
 
-检查真实 dry-run 报告后，按 [`.env.example`](../.env.example) 中的邮件变量配置
+检查真实 dry-run 报告后，选择投递方式，模型与邮件后端互不绑定。下面是直接 SMTP
+发送流程。使用获授权的已连接邮件工具时，按[邮件工具流程](model-backends.md#connector-send-lifecycle)
+执行 `run --prepare-connector`、`begin-send`、外部工具发送一次，再用 `confirm-sent`
+写入已确认回执。准备过程忽略 SMTP 的 `mail.enabled`，不需要 SMTP 凭据。
+目前只有 `run` 支持准备连接工具消息，由宿主安排和执行外部工具调用；内置
+`tick` / `schedule` 的发送路径仍为 SMTP。
+
+使用 SMTP 时，按 [`.env.example`](../.env.example) 中的邮件变量配置
 你有权使用的 SMTP 账户和发件地址，并设置 `mail.enabled: true`。仅提供收件邮箱
 无法发信，仍需要可用的发件服务器凭据。不要把凭据写进命令参数。
 
@@ -185,6 +212,8 @@ bash scripts/run.sh --env-file .env --config config.json schedule --send
 Windows 通过 `run.ps1` 使用相同参数。`Ctrl+C` 停止前台定时程序；关终端、重启电脑
 也会停止。不加 `--send` 的 `run`、`tick`、`schedule` 都是**真实 dry-run**，仍可能
 消耗模型 token。不要给同一份配置同时启动前台定时程序和系统定时任务。
+CLI 模型后端的调度进程须以已登录的 CLI 用户运行，并通过 `PATH` 或 `cli_executable`
+找到命令。请检查登录有效性和账户额度；其他机器上的交互对话不会自动让此进程就绪。
 
 - **Linux 自有服务器：** 使用普通用户与一种进程管理方式。参考
   [systemd、cron、Docker 部署示例](../examples/README.md)。使用私有环境变量，

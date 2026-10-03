@@ -131,3 +131,24 @@ def merge_papers(papers: list[Paper], topics: list[dict] | None = None) -> list[
         p.tracks = classify(p, topics)
         p.evidence_level = "全文正文（不含图像像素、外部补充材料；表格格式可能丢失）" if p.full_text else "仅摘要" if p.abstract else "仅元数据"
     return groups
+
+
+def screening_tracks(p: Paper, topics: list[dict] | None = None) -> list[str]:
+    """Retain broad model candidates without requiring the original query phrase.
+
+    Explicit include/exclude rules stay binding; query-only topics delegate
+    semantic membership to the model. The model may only choose from these IDs.
+    """
+    if not topics:
+        return classify(p, topics)
+    text = f"{p.title} {p.abstract}"
+    result = []
+    for topic in topics:
+        if topic.get("include_any") and not any(literal_phrase_in(term,text) for term in topic["include_any"]):
+            continue
+        if not all(literal_phrase_in(term,text) for term in topic.get("include_all",[])):
+            continue
+        if any(literal_phrase_in(term,text) for term in topic.get("exclude_any",[])):
+            continue
+        result.append(topic["id"])
+    return result

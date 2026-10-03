@@ -16,7 +16,7 @@ profiles from the same operator-managed backend.
 - Searches **Crossref, Europe PMC and arXiv**, with configurable queries and topic filters.
 - Produces **HTML, plain text and JSON audit reports** with source links and evidence levels,
   plus **RIS and BibTeX** files for reference-manager import.
-- Requires a compatible LLM for real research digests, producing an evidence-grounded
+- Uses a Codex/Claude Code CLI or compatible API for real research digests, producing an evidence-grounded
   research overview and structured paper summaries. Failed analysis blocks delivery.
 - Uses a concise, Nature-inspired editorial layout with **one global numbered
   reference list** across the overview and topic sections.
@@ -30,8 +30,11 @@ profiles from the same operator-managed backend.
 
 This is a self-hosted CLI/backend, not an already-hosted subscription service.
 An email address alone cannot activate delivery: an operator must provide a
-running host, retrieval network access, a configured model endpoint and credentials,
-and an SMTP sender for email delivery.
+running host, retrieval network access and a usable model backend. Choose an
+already-installed, logged-in Codex/Claude Code CLI (no second API key), or an
+independent compatible API. Email uses SMTP or the explicit connector handoff.
+See [model backends and delivery](model-backends.md). The program performs the
+research pipeline itself; there is no required host-written report import.
 
 ## Try the demo first
 
@@ -197,6 +200,9 @@ These reader settings are the main controls:
 - Optional `source_queries` supplies separate query lists for `crossref`,
   `europepmc` or `arxiv`. These are literal search phrases too, not provider query
   syntax; operators and quotation syntax are sanitized.
+- arXiv joins a query's literal words with `AND` in metadata search rather than
+  requiring the full phrase. Multiple queries contribute a union of results;
+  searches are bounded and do not claim exhaustive literature coverage.
 - `publication_window_days` controls the rolling publication window (default 7).
   `max_papers_per_track` is the per-topic paper cap; the legacy key name is retained.
 - `sources` selects adapters. Europe PMC focuses on life sciences; Crossref and
@@ -332,7 +338,28 @@ once per minute. Simply saving the JSON does not activate a service.
 
 ## Enable model summaries and email
 
-The local model wizard supports OpenAI-compatible providers including DeepSeek,
+### CLI backends and model-assisted discovery
+
+For Codex/Claude Code, install and log in to the CLI on the execution machine,
+then set `llm.enabled: true` and `llm.backend: "codex"` or `"claude"`. The
+program invokes it for structured output; its credentials stay with the CLI.
+Optional `cli_executable` selects a command path, `cli_model` selects a model
+(empty uses the effective default of the isolated CLI invocation, not its user-configured model), and `cli_timeout_seconds` defaults to 180 with a
+maximum of 1800 per call. CLI/account usage and limits still apply.
+
+Enable `llm.plan_queries` for model-assisted query planning and
+`llm.screen_candidates` for relevance screening; `max_screen_candidates` defaults
+to 50. Both switches default to false for old configurations. They add model
+calls before evidence-grounded paper analysis. See [backend configuration](model-backends.md).
+
+Email transport is independent: choose the existing SMTP route below, or
+`run --prepare-connector` followed by the authorized host's one external tool send
+and confirmed receipt import. Only `run` prepares connector messages; `tick` and
+`schedule` do not invoke an external connector. See the [connector lifecycle](model-backends.md#connector-send-lifecycle).
+
+### Independent API and direct SMTP
+
+The local API wizard supports OpenAI-compatible providers including DeepSeek,
 Qwen, Moonshot, OpenAI and a custom HTTPS endpoint. Choose your actual model ID;
 provider availability and pricing can change. New interactive setup offers the
 wizard automatically, or run it later:
@@ -355,7 +382,7 @@ confirmation before replacement. For process-only input without saving, configur
 environment references and use `--prompt-secrets` instead. See
 [platform/provider instructions](../docs/platform-setup.md) for full details.
 
-If you prefer to configure the model and SMTP manually:
+For manual API (`llm.backend: "api"`, the default) and SMTP setup:
 
 1. Copy `.env.example` to a private `.env`, then fill it in locally. The CLI reads
    process environment variables; it does **not** automatically load `.env`.
@@ -389,7 +416,7 @@ the [deployment examples](../examples/README.md) rather than reusing quoted wiza
 values blindly.
 
 `run` can contact the configured model and incur provider charges even without
-`--send`. Enabling a model transmits selected paper evidence to that provider. API/token costs vary with the chosen
+`--send`. Enabling a model transmits selected paper evidence to that provider. CLI/API usage and costs vary with the chosen
 model, selected paper count and evidence length. An empty eligible selection may
 not require a model request, but still requires valid model configuration.
 Missing credentials or failed/unsupported model analysis stops a real digest;
@@ -399,7 +426,9 @@ SMTP acceptance means the sender accepted the message, not guaranteed inbox deli
 ## Scheduling
 
 Choose one scheduling approach and keep the machine running with its configured
-secrets and durable state accessible.
+model login/secrets and durable state accessible. These commands are the direct
+SMTP path. A connector host separately schedules the prepare/claim/send/confirm
+workflow; connector preparation is currently an immediate `run` operation.
 
 ```sh
 # Foreground worker, checking each reader's local schedule; Ctrl-C to stop.
@@ -463,7 +492,13 @@ the cited paper. Metadata-only entries do not masquerade as full-text analysis.
 The overview follows the same source-grounding principle and numbered references
 remain consistent when a paper appears under several topics.
 
-`fetch_full_text` optionally requests available full text. `images.mode` is `off`
+`fetch_full_text` optionally requests available full text. For arXiv, the program
+tries the official `https://arxiv.org/html/<exact-version-id>` page. If it is
+unavailable or its article body is insufficient, evidence stays at the available
+abstract/metadata level with a warning; navigation or HTML metadata is never
+treated as full text.
+
+`images.mode` is `off`
 by default, with `links` and `embed` for supported source figures. Embedding needs
 explicitly supported figure-level reuse rights and attribution; otherwise the
 report links to the source. A manually supplied `figure_catalog` entry needs

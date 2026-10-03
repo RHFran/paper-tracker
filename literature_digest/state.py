@@ -23,6 +23,7 @@ class State:
         self.db.executescript("""
             CREATE TABLE IF NOT EXISTS deliveries_v2 (scope TEXT NOT NULL, id TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(scope,id));
             CREATE TABLE IF NOT EXISTS sent_papers_v2 (scope TEXT NOT NULL, alias TEXT NOT NULL, digest_id TEXT NOT NULL, sent_at TEXT NOT NULL, PRIMARY KEY(scope,alias));
+            CREATE TABLE IF NOT EXISTS delivery_receipts_v1 (scope TEXT NOT NULL, id TEXT NOT NULL, receipt TEXT NOT NULL, PRIMARY KEY(scope,id));
             CREATE TABLE IF NOT EXISTS metadata_v2 (scope TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(scope,key));
         """)
         self._migrate_v1()
@@ -89,6 +90,19 @@ class State:
     def unresolved(self):
         return [{"id": r[0], "status": r[1]} for r in self.db.execute("SELECT id,status FROM deliveries_v2 WHERE scope=? AND status IN ('sending','uncertain')", (self.scope,))]
 
+    def open_deliveries(self):
+        return [{"id": r[0], "status": r[1]} for r in self.db.execute(
+            "SELECT id,status FROM deliveries_v2 WHERE scope=? AND status IN ('prepared','sending','uncertain')", (self.scope,))]
+
+    def receipt(self, digest_id):
+        row = self.db.execute("SELECT receipt FROM delivery_receipts_v1 WHERE scope=? AND id=?", (self.scope, digest_id)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def record_receipt(self, digest_id, receipt):
+        with self.db:
+            self.db.execute("INSERT INTO delivery_receipts_v1 VALUES(?,?,?) ON CONFLICT(scope,id) DO UPDATE SET receipt=excluded.receipt",
+                            (self.scope, digest_id, json.dumps(receipt, ensure_ascii=False)))
+
     def prepare(self, digest_id, payload):
         now = datetime.now(timezone.utc).isoformat()
         self.db.execute("INSERT OR IGNORE INTO deliveries_v2 VALUES(?,?,?,?,?,?)", (self.scope, digest_id, "prepared", json.dumps(payload, ensure_ascii=False), now, now))
@@ -99,12 +113,15 @@ class State:
         self.db.execute("UPDATE deliveries_v2 SET status=?,updated_at=? WHERE scope=? AND id=?", (status, datetime.now(timezone.utc).isoformat(), self.scope, digest_id))
         self.db.commit()
 
-    def mark_sent(self, digest_id):
+    def mark_sent(self, digest_id, receipt=None):
         item = self.get(digest_id)
         if not item:
             raise ValueError("Digest was not found in this reader's outbox")
         now = datetime.now(timezone.utc).isoformat()
         with self.db:
+            if receipt is not None:
+                self.db.execute("INSERT INTO delivery_receipts_v1 VALUES(?,?,?) ON CONFLICT(scope,id) DO UPDATE SET receipt=excluded.receipt",
+                                (self.scope, digest_id, json.dumps(receipt, ensure_ascii=False)))
             for alias in item["payload"]["aliases"]:
                 self.db.execute("INSERT OR IGNORE INTO sent_papers_v2 VALUES(?,?,?,?)", (self.scope, alias, digest_id, now))
             self.db.execute("UPDATE deliveries_v2 SET status='sent',updated_at=? WHERE scope=? AND id=?", (now, self.scope, digest_id))
@@ -117,6 +134,8 @@ class State:
         item = self.get(digest_id)
         if not item or item["status"] not in ("sending", "uncertain"):
             raise ValueError("Only uncertain or interrupted deliveries can be resolved")
+        if item["payload"].get("transport") == "connector":
+            raise ValueError("Connector sends require confirm-sent with the actual provider receipt; generic resolve cannot bypass this boundary")
         if decision == "sent":
             self.mark_sent(digest_id)
         elif decision == "retry":

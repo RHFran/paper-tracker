@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Portable program-owned model workflow
+
+- The program orchestrates bounded model query planning, real source retrieval,
+  semantic relevance decisions with evidence anchors, paper analysis, exact-ID
+  deduplication, saved literature, and existing scheduled delivery.
+- Add selectable Codex CLI and Claude Code CLI model backends beside the existing
+  compatible API backend. CLI calls use structured output, isolated working
+  directories, no shell invocation, restricted tools and bounded timeouts; no
+  separate API key is needed when the chosen CLI has a usable account login.
+- Add a profile-scoped persistent literature index and `library` / `library-export`
+  commands. Successful dry runs also save papers; immutable audit copies preserve
+  provenance when ordinary preview filenames are reused.
+- Add `run --prepare-connector`, `begin-send` and `confirm-sent` for immutable
+  program-generated mail and explicit provider receipt reconciliation. This is
+  an external transport bridge, not a manual research-import path or an in-process
+  connector scheduler. Uncertain sends never automatically retry.
+- Add arXiv HTML full-text extraction with honest abstract fallback, term-based
+  arXiv queries, and explicit `retrieval_policy: "bounded"` with visible incomplete
+  coverage. Source throttling and transport errors still fail closed.
+- Preserve existing API configurations and SMTP scheduling. New optional paid
+  planning/screening failures, including malformed responses and retrieval failure
+  after planning, pause automatic same-day model retries.
+
+
 ### Smart Paper Tracker branding
 
 - Adopt **Smart Paper Tracker** across the bilingual README, documentation, demo

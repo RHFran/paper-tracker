@@ -8,12 +8,12 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .analysis import (ANALYSIS_POLICY, ModelAnalysisError, analyze, compose_overview,
-                       require_analysis_payload, require_llm)
+                       require_analysis_payload, require_llm, screen_candidates)
 from .http import HttpClient, RetrievalError
 from .mail import send_smtp
 from .models import TRACKS
 from .references import EXPORT_VERSION, reference_files, reference_manifest, validate_reference_files
-from .relevance import merge_papers
+from .relevance import merge_papers, screening_tracks
 from .render import render
 from .sources import enrich_full_text, fetch_crossref, fetch_europepmc, fetch_arxiv, attach_figures
 from .state import State, state_scope
@@ -75,6 +75,8 @@ def config_fingerprint(config):
 def verify_payload_config(payload, config):
     require_llm(config)
     require_analysis_payload(payload)
+    if payload.get("transport") == "connector":
+        raise ValueError("Connector outbox cannot be sent by SMTP; use its explicit transport workflow")
     if payload.get("recipient", "").lower() != config["recipient"].lower():
         raise ValueError("Prepared digest recipient does not match this profile")
     validate_reference_files(payload.get("reference_files", []))
@@ -110,7 +112,32 @@ def write_outputs(config, id_, text, html, audit, suffix="", references=None):
     return paths
 
 
-def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=send_smtp):
+def _save_library(config, state, papers, identifier, paths):
+    """Keep an immutable audit copy even when ordinary preview names are reused."""
+    from .library import save_papers
+    if paths.get("audit"):
+        save_papers(state, papers, identifier, paths)
+        return
+    original = Path(paths["json"])
+    content = original.read_bytes()
+    checksum = hashlib.sha256(content).hexdigest()
+    directory = Path(config["output_dir"]) / "library-audits"
+    directory.mkdir(parents=True, exist_ok=True)
+    frozen = directory / (checksum + ".json")
+    try:
+        with frozen.open("xb") as handle:
+            handle.write(content)
+        frozen.chmod(0o600)
+    except FileExistsError:
+        if frozen.is_symlink() or frozen.read_bytes() != content:
+            raise ValueError("Saved library audit failed integrity validation")
+    paths["library_audit"] = str(frozen.resolve())
+    save_papers(state, papers, identifier, {**paths, "audit": str(frozen.resolve())})
+
+
+def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=send_smtp, prepare_connector=False):
+    if send and prepare_connector:
+        raise ValueError("Cannot send SMTP and prepare connector simultaneously")
     # Reject incomplete setup before retrieval, model charges, report or state writes.
     require_llm(config)
     now = now or datetime.now(ZoneInfo(config["timezone"]))
@@ -123,6 +150,11 @@ def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=sen
     try:
         with state.lock():
             existing = state.get(id_)
+            if prepare_connector and existing:
+                from .connector_delivery import prepared_result
+                return prepared_result(existing, config)
+            if prepare_connector and state.open_deliveries():
+                raise RuntimeError("An earlier outbox is pending; reconcile it before preparing another connector envelope")
             if send and state.unresolved():
                 raise RuntimeError("存在发送结果不确定的日报；先运行 status 核对，再用 resolve 人工处理，禁止自动重发")
             prior_same_day = state.sent_on(local_day.isoformat()) if send else None
@@ -144,22 +176,37 @@ def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=sen
             # Clock rollback must not create an inverted source request.
             start = min(start, local_day)
             meta = {"local_date": local_day.isoformat(), "timezone": config["timezone"], "publication_start": publication_start.isoformat(), "publication_window_days": config["publication_window_days"], "window_start": window_start.isoformat(), "window_end": local_now.isoformat(), "date_precision_note": "Day-resolution sources include the boundary calendar date; exact elapsed-hour membership is unknown", "retrieval_mode": "rolling_publication_window", "retrieval_start": start.isoformat(), "retrieval_end": local_day.isoformat(), "initial": initial, "profile_id": config.get("profile_id", "default"), "language": config.get("language", "zh-CN"), "sources": [], "errors": [], "retrieved": 0, "relevant": 0, "date_unknown": 0, "outside_window": 0, "already_sent": 0, "deferred": 0}
+            retrieval_config = config
+            if config["llm"].get("plan_queries", False):
+                try:
+                    from .query_planning import plan_queries
+                    retrieval_config = plan_queries(config, http)
+                    meta["query_plan"] = retrieval_config["topics"]
+                except (RetrievalError, ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
+                    state.pause_model_failure(local_day.isoformat(), config_fingerprint(config), "Model query planning failed validation")
+                    raise ModelAnalysisError("Model query planning failed; no retrieval or delivery completed") from None
             all_papers = []
             for source in config["sources"]:
                 try:
-                    papers, report = fetchers[source](http, config, start.isoformat(), local_day.isoformat(), True)
+                    papers, report = fetchers[source](http, retrieval_config, start.isoformat(), local_day.isoformat(), True)
                     all_papers.extend(papers)
                     meta["sources"].append(report)
-                except (RetrievalError, ValueError, TypeError, KeyError) as exc:
+                    if report.get("truncated") or report.get("complete") is False:
+                        meta["partial_coverage"] = True
+                except (RetrievalError, ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
                     meta["errors"].append(f"{source}：{exc}")
             meta["retrieved"] = len(all_papers)
             if meta["errors"]:
+                if config["llm"].get("plan_queries", False):
+                    state.pause_model_failure(local_day.isoformat(), config_fingerprint(config), "Retrieval failed after paid query planning; automatic same-day retries paused")
                 meta["failure"] = True
                 text, html = render([], meta, config)
                 paths = write_outputs(config, id_, text, html, {"meta": meta, "papers": []}, "_FAILED")
                 return {"status": "retrieval_failed", "digest_id": id_, "errors": meta["errors"], "paths": paths}
             candidates, excluded = [], []
             for p in merge_papers(all_papers, config.get("topics")):
+                if config["llm"].get("screen_candidates", False):
+                    p.tracks = screening_tracks(p, config.get("topics"))
                 if not p.tracks:
                     continue
                 meta["relevant"] += 1
@@ -182,6 +229,15 @@ def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=sen
                     continue
                 candidates.append(p)
             candidates.sort(key=lambda p: (p.publication_date, p.key), reverse=True)
+            if config["llm"].get("screen_candidates", False):
+                try:
+                    candidates, screening = screen_candidates(candidates, config, http)
+                    meta["model_screening"] = screening
+                    if any("Deferred beyond" in decision.get("reason", "") for decision in screening):
+                        meta["partial_coverage"] = True
+                except (RetrievalError, ValueError, TypeError, KeyError, IndexError, AttributeError):
+                    state.pause_model_failure(local_day.isoformat(), config_fingerprint(config), "Model relevance screening failed validation")
+                    raise ModelAnalysisError("Model relevance screening failed; no digest was delivered") from None
             selected = []
             counts = {k: 0 for k in ([t["id"] for t in config["topics"]] if config.get("topics") else TRACKS)}
             for p in candidates:
@@ -216,18 +272,28 @@ def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=sen
             state.clear_model_failure()
             meta["analysis_policy"] = ANALYSIS_POLICY
             meta["insufficient_evidence"] = sum(item["reason"] == "Insufficient source evidence for required LLM analysis" for item in excluded)
-            suffix = "" if send else "_preview"
+            suffix = "" if send or prepare_connector else "_preview"
             references = reference_files(selected, local_day.isoformat() + "_" + id_ + suffix)
             meta["reference_exports"] = reference_manifest(references)
             text, html = render(selected, meta, config, overview)
             audit = {"meta": meta, "overview": overview, "papers": [p.export() for p in selected], "excluded": excluded}
-            paths = write_outputs(config, id_, text, html, audit, suffix, references)
-            if not send:
+            paths = {} if prepare_connector else write_outputs(config, id_, text, html, audit, suffix, references)
+            if not send and not prepare_connector:
+                _save_library(config, state, selected, id_, paths)
                 return {"status": "dry_run", "digest_id": id_, "paper_count": len(selected), "paths": paths}
             # Local reports use sibling downloads; mail uses real MIME attachments.
             text, html = render(selected, {**meta, "reference_delivery": "attachments"}, config, overview)
             payload = {"analysis_policy": ANALYSIS_POLICY, "reference_files": references, "recipient": config["recipient"], "profile_id": config.get("profile_id", "default"), "config_fingerprint": config_fingerprint(config), "subject": f"{'科研文献精选' if config.get('language', 'zh').startswith('zh') else 'Literature digest'} | {local_day.isoformat()} | {len(selected)}", "text": text, "html": html, "aliases": sorted({a for p in selected for a in p.aliases}), "harvest_until": local_day.isoformat(), "paths": paths}
+            if prepare_connector:
+                from .connector_delivery import prepare_payload
+                # Retain complete machine-retrieved evidence privately for audit;
+                # only RIS/BibTeX are passed as email attachments.
+                audit["papers"] = [p.export(include_text=True) for p in selected]
+                result = prepare_payload(config, state, id_, payload, audit)
+                _save_library(config, state, selected, id_, result["paths"])
+                return result
             prepared = state.prepare(id_, payload)
+            _save_library(config, state, selected, id_, paths)
             mail_adapter(prepared["payload"], config, state, id_)
             return {"status": "sent", "digest_id": id_, "paper_count": len(selected), "paths": paths}
     finally:

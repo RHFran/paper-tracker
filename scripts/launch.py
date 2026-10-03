@@ -57,7 +57,7 @@ def main(argv=None):
                 sections.append("mail")
             for config in configs:
                 for section in sections:
-                    if config[section]["enabled"]:
+                    if config[section]["enabled"] and (section != "llm" or config["llm"].get("backend", "api") == "api"):
                         names.update(value for key, value in config[section].items() if key.endswith("_env"))
             missing = sorted(name for name in names if not os.environ.get(name))
             if missing and not sys.stdin.isatty():
