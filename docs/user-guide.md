@@ -7,6 +7,13 @@ email delivery. Choose topics, recipient, local delivery time, recurring weekday
 or specific dates, timezone and output language. Run one reader or several isolated
 profiles from the same operator-managed backend.
 
+Set optional root/profile `"subject_template": "Research daily | {date}"` to
+customize the email subject. Exactly one literal `{date}` is replaced by the
+digest's local calendar date (`YYYY-MM-DD`); other fields, formatting expressions
+and control characters are rejected. Omit it or use `""` to preserve the existing
+localized subject. Both agent and standalone workflows apply it before freezing
+the envelope. A prepared or sent envelope is never rewritten when settings change.
+
 [Project home](../README.md) · [中文完整指南](../docs/user-guide_中文.md) · [Platform setup](../docs/platform-setup.md) · [Security](../SECURITY.md)
 
 **Python 3.11+ · Windows / Linux / macOS · MIT · Explicit opt-in email**

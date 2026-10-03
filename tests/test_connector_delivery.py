@@ -54,6 +54,28 @@ class ConnectorDelivery(unittest.TestCase):
         b=run(self.c,prepare_connector=True,now=self.now,fetchers={'crossref':lambda *a:self.fail('re-fetch')})
         self.assertTrue(b['reused_prepared_outbox']);self.assertEqual(before,Path(b['paths']['envelope']).read_bytes())
 
+    def test_standalone_subject_template_is_frozen_and_cannot_drift(self):
+        self.c['subject_template'] = 'Research daily | {date}'
+        result = self.prepare()
+        envelope = json.loads(Path(result['paths']['envelope']).read_text(encoding='utf-8'))
+        self.assertEqual(envelope['subject'], 'Research daily | ' + self.now.date().isoformat())
+        self.c['subject_template'] = 'Changed daily | {date}'
+        with self.assertRaisesRegex(ValueError, 'settings changed'):
+            begin_send(self.c, result['digest_id'], now=self.now)
+
+    def test_standalone_default_subject_unchanged(self):
+        result = self.prepare()
+        envelope = json.loads(Path(result['paths']['envelope']).read_text(encoding='utf-8'))
+        self.assertEqual(envelope['subject'], 'Literature digest | ' + self.now.date().isoformat() + ' | 1')
+
+    def test_standalone_subject_reaches_synthetic_smtp_adapter(self):
+        self.c['subject_template'] = 'Research daily | {date}'
+        seen = []
+        result = run(self.c, send=True, now=self.now, http=ReviewModel(), fetchers=self.fetch(),
+                     mail_adapter=lambda payload, config, state, identifier: seen.append(payload['subject']))
+        self.assertEqual(seen, ['Research daily | ' + self.now.date().isoformat()])
+        self.assertEqual(self.state().get(result['digest_id'])['status'], 'prepared')
+
     def test_one_shot_claim_then_acceptance_is_atomic_idempotent(self):
         r=self.prepare();identifier=r['digest_id'];begin_send(self.c,identifier,now=self.now)
         with self.assertRaises(ValueError):begin_send(self.c,identifier,now=self.now)

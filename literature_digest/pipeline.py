@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 from .analysis import (ANALYSIS_POLICY, ModelAnalysisError, analyze, compose_overview, compose_outlook,
                        require_analysis_payload, require_llm, screen_candidates)
+from .config import digest_subject
 from .http import HttpClient, RetrievalError
 from .mail import send_smtp
 from .models import TRACKS
@@ -72,6 +73,8 @@ def config_fingerprint(config):
     if config.get("workflow", {}).get("mode", "standalone") == "standalone":
         ignored |= {"workflow", "agent"}
     normalized = {k: v for k, v in config.items() if k not in ignored}
+    if not normalized.get("subject_template"):
+        normalized.pop("subject_template", None)  # Preserve fingerprints of existing frozen jobs/outboxes.
     if "agent" in normalized:
         normalized["agent"] = {k: v for k, v in normalized["agent"].items() if not (k == "reasoning_effort" and not v)}
     return hashlib.sha256(json.dumps({"reference_export_version": EXPORT_VERSION, "config": normalized}, sort_keys=True).encode()).hexdigest()
@@ -299,7 +302,7 @@ def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=sen
                 return {"status": "dry_run", "digest_id": id_, "paper_count": len(selected), "paths": paths}
             # Local reports use sibling downloads; mail uses real MIME attachments.
             text, html = render(selected, {**meta, "reference_delivery": "attachments"}, config, overview, outlook=outlook)
-            payload = {"analysis_policy": ANALYSIS_POLICY, "reference_files": references, "recipient": config["recipient"], "profile_id": config.get("profile_id", "default"), "config_fingerprint": config_fingerprint(config), "subject": f"{'科研文献精选' if config.get('language', 'zh').startswith('zh') else 'Literature digest'} | {local_day.isoformat()} | {len(selected)}", "text": text, "html": html, "aliases": sorted({a for p in selected for a in p.aliases}), "harvest_until": local_day.isoformat(), "paths": paths}
+            payload = {"analysis_policy": ANALYSIS_POLICY, "reference_files": references, "recipient": config["recipient"], "profile_id": config.get("profile_id", "default"), "config_fingerprint": config_fingerprint(config), "subject": digest_subject(config, local_day.isoformat(), len(selected)), "text": text, "html": html, "aliases": sorted({a for p in selected for a in p.aliases}), "harvest_until": local_day.isoformat(), "paths": paths}
             if prepare_connector:
                 from .connector_delivery import prepare_payload
                 # Retain complete machine-retrieved evidence privately for audit;

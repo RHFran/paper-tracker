@@ -141,6 +141,26 @@ class AgentJobs(unittest.TestCase):
         with self.assertRaises(ValueError):begin_send(self.config,job['job_id'],now=self.now)
         self.assertIsNone(self.state().checkpoint())
 
+    def test_subject_template_is_frozen_before_connector_preparation(self):
+        self.config['subject_template'] = 'Research daily | {date}'
+        job, result = self.finish('connector')
+        envelope = json.loads(Path(result['paths']['envelope']).read_text(encoding='utf-8'))
+        self.assertEqual(envelope['subject'], 'Research daily | 2026-10-03')
+        self.config['subject_template'] = 'Changed daily | {date}'
+        with self.assertRaisesRegex(ValueError, 'settings changed'):
+            begin_send(self.config, job['job_id'], now=self.now)
+
+    def test_default_subject_is_backward_compatible(self):
+        job, result = self.finish('connector')
+        envelope = json.loads(Path(result['paths']['envelope']).read_text(encoding='utf-8'))
+        self.assertEqual(envelope['subject'], 'Literature digest | 2026-10-03 | 1')
+
+    def test_subject_template_reaches_smtp_outbox_without_sending(self):
+        self.config['subject_template'] = 'Research daily | {date}'
+        job, result = self.finish('smtp')
+        self.assertEqual(result['status'], 'prepared')
+        self.assertEqual(self.state().get(job['job_id'])['payload']['subject'], 'Research daily | 2026-10-03')
+
     def test_partial_finalize_recovers_exact_outbox(self):
         job=create_job(self.config,self.now,'connector');self.source(job)
         with patch('literature_digest.agent_jobs._save_library',side_effect=RuntimeError('simulated interruption')):

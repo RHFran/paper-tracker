@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Optional root/profile `subject_template` customizes a digest subject with one
+  literal `{date}` placeholder before SMTP/connector envelopes are frozen.
+  Existing subjects and empty-template fingerprints remain unchanged; header
+  controls, unsupported fields and post-preparation setting changes are rejected.
+
 ## 3.1.0 — 2026-10-03
 
 - Agent-chosen original scientific figures with exact caption/source/rights

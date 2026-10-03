@@ -17,6 +17,7 @@ DEFAULTS = {
     "recipient": "researcher@example.org",
     "timezone": "Asia/Shanghai",
     "language": "zh-CN",
+    "subject_template": "",  # Empty preserves the existing localized subject.
     "topics": None,  # Retains the v1 two-topic behavior for existing configurations.
     "schedule": {"time": "08:30", "weekdays": [0, 1, 2, 3, 4, 5, 6], "dates": None, "catch_up": True},
     "publication_window_days": 7,
@@ -36,12 +37,32 @@ DEFAULTS = {
     "llm": {"enabled": False, "backend": "api", "cli_executable": "", "cli_model": "", "cli_timeout_seconds": 180, "screen_candidates": False, "plan_queries": False, "max_screen_candidates": 50, "base_url_env": "LITERATURE_LLM_BASE_URL", "api_key_env": "LITERATURE_LLM_API_KEY", "model_env": "LITERATURE_LLM_MODEL", "max_evidence_chars": 60000},
     "mail": {"enabled": False, "host_env": "LITERATURE_SMTP_HOST", "port": 465, "security": "ssl", "user_env": "LITERATURE_SMTP_USER", "password_env": "LITERATURE_SMTP_PASSWORD", "from_env": "LITERATURE_MAIL_FROM"},
 }
-PROFILE_FIELDS = {"workflow", "agent", "retrieval_policy", "llm", "id", "recipient", "timezone", "language", "topics", "schedule", "images", "publication_window_days", "include_preprints", "max_papers_per_track"}
+PROFILE_FIELDS = {"workflow", "agent", "retrieval_policy", "llm", "id", "recipient", "timezone", "language", "subject_template", "topics", "schedule", "images", "publication_window_days", "include_preprints", "max_papers_per_track"}
 ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
 def valid_email(value: str) -> bool:
     return isinstance(value, str) and len(value) <= 254 and not any(ord(c) < 32 or ord(c) == 127 for c in value) and re.fullmatch(r"[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+", value) is not None
+
+
+def validate_subject_template(value):
+    """Only a literal {date} substitution; never evaluate Python format fields."""
+    if not isinstance(value, str) or len(value) > 200 or any(ord(c) < 32 or ord(c) == 127 for c in value):
+        raise ValueError("subject_template must be a single-line string of at most 200 characters")
+    if value and (value != value.strip() or value.count("{date}") != 1 or any(c in value.replace("{date}", "") for c in "{}")):
+        raise ValueError("subject_template must contain exactly one literal {date} and no other braces or format fields")
+    return value
+
+
+def digest_subject(config, local_date, paper_count):
+    template = validate_subject_template(config.get("subject_template", ""))
+    # Validate the substituted date independently, including direct Python callers.
+    if not isinstance(local_date, str) or date.fromisoformat(local_date).isoformat() != local_date:
+        raise ValueError("Digest subject date must be YYYY-MM-DD")
+    if template:
+        return template.replace("{date}", local_date)
+    label = "科研文献精选" if config.get("language", "zh").startswith("zh") else "Literature digest"
+    return f"{label} | {local_date} | {paper_count}"
 
 
 def _positive(value, label, maximum=100000):
@@ -90,6 +111,7 @@ def validate_config(c):
         raise ValueError("timezone must be an installed IANA timezone, e.g. Asia/Shanghai") from None
     if not isinstance(c["language"], str) or not re.fullmatch(r"[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*", c["language"]):
         raise ValueError("language must be a language tag, e.g. zh-CN, en, de or ja")
+    validate_subject_template(c.get("subject_template", ""))
     if c.get("retrieval_policy", "complete") not in ("complete", "bounded"):
         raise ValueError("retrieval_policy must be complete or bounded")
     if not isinstance(c["sources"], list) or not c["sources"] or any(not isinstance(source, str) for source in c["sources"]) or set(c["sources"]) - {"crossref", "europepmc", "arxiv"}:

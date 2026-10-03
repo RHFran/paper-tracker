@@ -21,6 +21,7 @@ from . import __version__
 from .analysis import (ANALYSIS_POLICY, FIELDS, _check_anchor, reference_map,
                        validate_analysis, validate_overview)
 from .connector_delivery import read_json, _object, _text
+from .config import digest_subject
 from .models import Paper, TRACKS
 from .outlook import prepare_outlook
 from .perspective import validate_perspective
@@ -689,7 +690,7 @@ def _complete(state, config, job, data, selected, overview, notes, outlook=None)
         text, html = render(selected, {**meta, "reference_delivery": "attachments", "figure_delivery": "inline"}, config, overview, outlook)
         payload = {"analysis_policy": ANALYSIS_POLICY, "workflow": "agent_led", "agent_submission_sha256": job.get("submission_sha256"), "reference_files": references,
                    "recipient": config["recipient"], "profile_id": config["profile_id"], "config_fingerprint": config_fingerprint(config),
-                   "subject": f"{'科研文献精选' if config['language'].startswith('zh') else 'Literature digest'} | {job['local_date']} | {len(selected)}",
+                   "subject": digest_subject(config, job['local_date'], len(selected)),
                    "text": text, "html": html, "aliases": sorted({alias for paper in selected for alias in paper.aliases}),
                    "harvest_until": job["local_date"], "paths": paths}
         if inline_images:
