@@ -1,0 +1,266 @@
+{
+  "meta": {
+    "demo": true,
+    "synthetic": true,
+    "demo_notice": "DEMO / SYNTHETIC: all papers, authors, journals, dates, data, and findings are invented. No sources queried, model called, mail sent, or delivery state changed.",
+    "title": "DEMO / Synthetic research digest preview",
+    "local_date": "2026-10-03",
+    "timezone": "UTC",
+    "language": "en",
+    "publication_window_days": 7,
+    "window_start": "2026-09-26 (fixed synthetic fixture)",
+    "window_end": "2026-10-03 (fixed synthetic fixture)",
+    "date_precision_note": "Fixed invented dates; no real publication eligibility was assessed.",
+    "retrieval_mode": "offline_synthetic_fixture",
+    "retrieved": 0,
+    "fixture_count": 2,
+    "relevant": 2,
+    "already_sent": 0,
+    "date_unknown": 0,
+    "outside_window": 0,
+    "deferred": 0,
+    "sources": [],
+    "errors": [],
+    "failure": false
+  },
+  "overview": {
+    "mode": "synthetic_demo",
+    "synthetic": true,
+    "language": "en",
+    "paragraphs": [
+      {
+        "sentences": [
+          {
+            "text": "These synthetic studies examine differences among forest tree species through volatile-emission responses and discrimination from canopy observations.",
+            "citations": [
+              {
+                "ref": 1,
+                "evidence": "We ask how drought intensity changes volatile emissions across tree species."
+              },
+              {
+                "ref": 2,
+                "evidence": "We ask whether seasonal spectral and canopy-height information improve tree-species discrimination."
+              }
+            ]
+          },
+          {
+            "text": "In the simulated sapling observations, moderate drought increases isoprene emissions in only one of three species, illustrating a species-dependent response within this experiment.",
+            "citations": [
+              {
+                "ref": 1,
+                "evidence": "Moderate drought increased isoprene emissions in one species but not the other two in the simulated observations."
+              }
+            ]
+          },
+          {
+            "text": "For the simulated mapping task, spectral-plus-height features achieve held-out macro-F1 of 0.82 compared with 0.74 for the single-season spectral baseline.",
+            "citations": [
+              {
+                "ref": 2,
+                "evidence": "Simulated held-out macro-F1 was 0.82 for spectral-plus-height features and 0.74 for the single-season spectral baseline."
+              }
+            ]
+          },
+          {
+            "text": "The examples remain bounded by a controlled sapling experiment and a single-site classification comparison, leaving mature-forest responses and cross-site performance unresolved.",
+            "citations": [
+              {
+                "ref": 1,
+                "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
+              },
+              {
+                "ref": 2,
+                "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "references": [
+      {
+        "number": 1,
+        "paper_key": "demo:forest-bvoc"
+      },
+      {
+        "number": 2,
+        "paper_key": "demo:canopy-species"
+      }
+    ],
+    "warnings": [],
+    "notice": "DEMO / synthetic, hand-authored offline introduction; no model or real literature used."
+  },
+  "papers": [
+    {
+      "title": "[DEMO / SYNTHETIC] Drought intensity and species-specific canopy volatile emissions",
+      "source_id": "forest-bvoc",
+      "source": "demo",
+      "url": "https://example.org/demo/forest-bvoc",
+      "doi": "",
+      "abstract": "DEMO / SYNTHETIC SOURCE. All studies, authors, observations, and results below are invented for an offline layout preview.\n\nThe synthetic design evaluates species-specific emission responses rather than assuming a uniform drought effect.\nWe ask how drought intensity changes volatile emissions across tree species.\nRepeated branch-chamber sampling and gas chromatography were analyzed using species-by-treatment mixed-effects models.\nThe simulated experiment followed 72 saplings from three tree species through two controlled drought cycles.\nThe controlled sapling experiment did not test mature forests or seasonal variation under field conditions.\nModerate drought increased isoprene emissions in one species but not the other two in the simulated observations.\nSevere drought reduced emissions in all three simulated species relative to their watered controls.",
+      "authors": [
+        "A. Example (simulated author)",
+        "B. Example (simulated author)"
+      ],
+      "journal": "DEMO Synthetic Research (not a real journal)",
+      "publication_date": "2026-10-01",
+      "publication_date_label": "Fixed fixture date; not a publication record",
+      "index_date": "",
+      "kind": "Synthetic demo; not published or peer reviewed",
+      "pmcid": "",
+      "open_access": false,
+      "full_text": "DEMO / SYNTHETIC SOURCE. All studies, authors, observations, and results below are invented for an offline layout preview.\n\nThe synthetic design evaluates species-specific emission responses rather than assuming a uniform drought effect.\nWe ask how drought intensity changes volatile emissions across tree species.\nRepeated branch-chamber sampling and gas chromatography were analyzed using species-by-treatment mixed-effects models.\nThe simulated experiment followed 72 saplings from three tree species through two controlled drought cycles.\nThe controlled sapling experiment did not test mature forests or seasonal variation under field conditions.\nModerate drought increased isoprene emissions in one species but not the other two in the simulated observations.\nSevere drought reduced emissions in all three simulated species relative to their watered controls.",
+      "full_text_url": "",
+      "evidence_level": "Locally authored synthetic evidence; not a real paper",
+      "tracks": [
+        "bvoc"
+      ],
+      "source_aliases": [],
+      "provenance": [
+        {
+          "source": "demo",
+          "synthetic": true,
+          "retrieved": false,
+          "identifier": "demo:forest-bvoc",
+          "note": "Authored offline fixture; example.org links are placeholders, not research sources."
+        }
+      ],
+      "analysis": {
+        "mode": "synthetic_demo",
+        "synthetic": true,
+        "language": "en",
+        "fields": {
+          "highlights": [
+            {
+              "text": "The synthetic design evaluates species-specific emission responses instead of assuming a uniform drought effect.",
+              "evidence": "The synthetic design evaluates species-specific emission responses rather than assuming a uniform drought effect."
+            }
+          ],
+          "question": [
+            {
+              "text": "This synthetic study asks how drought intensity changes volatile emissions across tree species.",
+              "evidence": "We ask how drought intensity changes volatile emissions across tree species."
+            }
+          ],
+          "methods": [
+            {
+              "text": "Repeated branch-chamber sampling and gas chromatography were analyzed with species-by-treatment mixed-effects models.",
+              "evidence": "Repeated branch-chamber sampling and gas chromatography were analyzed using species-by-treatment mixed-effects models."
+            },
+            {
+              "text": "The simulated experiment followed 72 saplings from three tree species through two controlled drought cycles.",
+              "evidence": "The simulated experiment followed 72 saplings from three tree species through two controlled drought cycles."
+            },
+            {
+              "text": "Interpretation is limited to controlled sapling experiments; mature forests and seasonal field variation were not tested.",
+              "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
+            }
+          ],
+          "findings": [
+            {
+              "text": "In the simulated observations, moderate drought increased isoprene emissions in one species but not the other two.",
+              "evidence": "Moderate drought increased isoprene emissions in one species but not the other two in the simulated observations."
+            },
+            {
+              "text": "Severe drought reduced emissions in all three simulated species relative to their watered controls.",
+              "evidence": "Severe drought reduced emissions in all three simulated species relative to their watered controls."
+            }
+          ]
+        },
+        "notice": "Synthetic example analysis; no model called; anchors refer only to the fixture source."
+      },
+      "warnings": [
+        "DEMO: all data and findings are invented, solely for preview."
+      ],
+      "arxiv_id": "",
+      "relations": [],
+      "figures": [],
+      "key": "demo:forest-bvoc",
+      "evidence_sha256": "77b1d7fc527e3b5bb136acaa2d0640251aedbc4e1d800bd8e8715b6b174ff662"
+    },
+    {
+      "title": "[DEMO / SYNTHETIC] Seasonal spectral and structural observations for tree-species mapping",
+      "source_id": "canopy-species",
+      "source": "demo",
+      "url": "https://example.org/demo/canopy-species",
+      "doi": "",
+      "abstract": "DEMO / SYNTHETIC SOURCE. All studies, authors, observations, and results below are invented for an offline layout preview.\n\nThe synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination.\nWe ask whether seasonal spectral and canopy-height information improve tree-species discrimination.\nA random-forest classifier combined two-season hyperspectral imagery with lidar canopy-height features.\nThe synthetic dataset contains 120 four-species plots; training and evaluation use spatially separate stands.\nThe comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested.\nSimulated held-out macro-F1 was 0.82 for spectral-plus-height features and 0.74 for the single-season spectral baseline.",
+      "authors": [
+        "A. Example (simulated author)",
+        "B. Example (simulated author)"
+      ],
+      "journal": "DEMO Synthetic Research (not a real journal)",
+      "publication_date": "2026-10-01",
+      "publication_date_label": "Fixed fixture date; not a publication record",
+      "index_date": "",
+      "kind": "Synthetic demo; not published or peer reviewed",
+      "pmcid": "",
+      "open_access": false,
+      "full_text": "DEMO / SYNTHETIC SOURCE. All studies, authors, observations, and results below are invented for an offline layout preview.\n\nThe synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination.\nWe ask whether seasonal spectral and canopy-height information improve tree-species discrimination.\nA random-forest classifier combined two-season hyperspectral imagery with lidar canopy-height features.\nThe synthetic dataset contains 120 four-species plots; training and evaluation use spatially separate stands.\nThe comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested.\nSimulated held-out macro-F1 was 0.82 for spectral-plus-height features and 0.74 for the single-season spectral baseline.",
+      "full_text_url": "",
+      "evidence_level": "Locally authored synthetic evidence; not a real paper",
+      "tracks": [
+        "tree_species"
+      ],
+      "source_aliases": [],
+      "provenance": [
+        {
+          "source": "demo",
+          "synthetic": true,
+          "retrieved": false,
+          "identifier": "demo:canopy-species",
+          "note": "Authored offline fixture; example.org links are placeholders, not research sources."
+        }
+      ],
+      "analysis": {
+        "mode": "synthetic_demo",
+        "synthetic": true,
+        "language": "en",
+        "fields": {
+          "highlights": [
+            {
+              "text": "The synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination.",
+              "evidence": "The synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination."
+            }
+          ],
+          "question": [
+            {
+              "text": "This synthetic study asks whether seasonal spectral and canopy-height information improve tree-species discrimination.",
+              "evidence": "We ask whether seasonal spectral and canopy-height information improve tree-species discrimination."
+            }
+          ],
+          "methods": [
+            {
+              "text": "The simulated workflow combines two-season hyperspectral imagery with lidar height features in a random-forest classifier.",
+              "evidence": "A random-forest classifier combined two-season hyperspectral imagery with lidar canopy-height features."
+            },
+            {
+              "text": "The simulated dataset contains 120 plots covering four tree species; training and evaluation use spatially separate stands.",
+              "evidence": "The synthetic dataset contains 120 four-species plots; training and evaluation use spatially separate stands."
+            },
+            {
+              "text": "The simulated comparison covers one site; transfer to other forests, sensors, and rare species remains untested.",
+              "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
+            }
+          ],
+          "findings": [
+            {
+              "text": "In the simulated held-out stands, spectral-plus-height features achieve macro-F1 0.82 versus 0.74 for the single-season spectral baseline.",
+              "evidence": "Simulated held-out macro-F1 was 0.82 for spectral-plus-height features and 0.74 for the single-season spectral baseline."
+            }
+          ]
+        },
+        "notice": "Synthetic example analysis; no model called; anchors refer only to the fixture source."
+      },
+      "warnings": [
+        "DEMO: all data and findings are invented, solely for preview."
+      ],
+      "arxiv_id": "",
+      "relations": [],
+      "figures": [],
+      "key": "demo:canopy-species",
+      "evidence_sha256": "0a4579b8d5bfea92730761a727def74afa081667fa7b800ba7ca5b16a7d52d54"
+    }
+  ],
+  "excluded": []
+}

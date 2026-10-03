@@ -1,0 +1,266 @@
+{
+  "meta": {
+    "demo": true,
+    "synthetic": true,
+    "demo_notice": "DEMO / 合成示例：所有论文、作者、期刊、日期、数据与研究结果均为虚构；未检索来源、未调用模型、未发送邮件、未更改投递状态。",
+    "title": "DEMO / 合成科研文献预览",
+    "local_date": "2026-10-03",
+    "timezone": "UTC",
+    "language": "zh-CN",
+    "publication_window_days": 7,
+    "window_start": "2026-09-26 (fixed synthetic fixture)",
+    "window_end": "2026-10-03 (fixed synthetic fixture)",
+    "date_precision_note": "Fixed invented dates; no real publication eligibility was assessed.",
+    "retrieval_mode": "offline_synthetic_fixture",
+    "retrieved": 0,
+    "fixture_count": 2,
+    "relevant": 2,
+    "already_sent": 0,
+    "date_unknown": 0,
+    "outside_window": 0,
+    "deferred": 0,
+    "sources": [],
+    "errors": [],
+    "failure": false
+  },
+  "overview": {
+    "mode": "synthetic_demo",
+    "synthetic": true,
+    "language": "zh-CN",
+    "paragraphs": [
+      {
+        "sentences": [
+          {
+            "text": "这组合成研究从树种间的挥发物排放差异与冠层观测的树种区分两个角度，讨论森林中的树种差异。",
+            "citations": [
+              {
+                "ref": 1,
+                "evidence": "We ask how drought intensity changes volatile emissions across tree species."
+              },
+              {
+                "ref": 2,
+                "evidence": "We ask whether seasonal spectral and canopy-height information improve tree-species discrimination."
+              }
+            ]
+          },
+          {
+            "text": "在受控幼树实验的模拟观测中，中度干旱仅提高了一个树种的异戊二烯排放，显示这一响应在三个模拟树种间并不一致。",
+            "citations": [
+              {
+                "ref": 1,
+                "evidence": "Moderate drought increased isoprene emissions in one species but not the other two in the simulated observations."
+              }
+            ]
+          },
+          {
+            "text": "在树种制图的模拟留出林分中，光谱与高度融合取得0.82的宏平均F1，高于单季光谱基线的0.74。",
+            "citations": [
+              {
+                "ref": 2,
+                "evidence": "Simulated held-out macro-F1 was 0.82 for spectral-plus-height features and 0.74 for the single-season spectral baseline."
+              }
+            ]
+          },
+          {
+            "text": "两项示例的适用范围分别受限于受控幼树实验和单地点分类比较，尚不能据此推断成熟森林或跨地点的表现。",
+            "citations": [
+              {
+                "ref": 1,
+                "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
+              },
+              {
+                "ref": 2,
+                "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "references": [
+      {
+        "number": 1,
+        "paper_key": "demo:forest-bvoc"
+      },
+      {
+        "number": 2,
+        "paper_key": "demo:canopy-species"
+      }
+    ],
+    "warnings": [],
+    "notice": "DEMO / synthetic, hand-authored offline introduction; no model or real literature used."
+  },
+  "papers": [
+    {
+      "title": "[DEMO / SYNTHETIC 合成示例] 干旱强度与树种特异性的冠层挥发物排放",
+      "source_id": "forest-bvoc",
+      "source": "demo",
+      "url": "https://example.org/demo/forest-bvoc",
+      "doi": "",
+      "abstract": "DEMO / SYNTHETIC SOURCE. All studies, authors, observations, and results below are invented for an offline layout preview.\n\nThe synthetic design evaluates species-specific emission responses rather than assuming a uniform drought effect.\nWe ask how drought intensity changes volatile emissions across tree species.\nRepeated branch-chamber sampling and gas chromatography were analyzed using species-by-treatment mixed-effects models.\nThe simulated experiment followed 72 saplings from three tree species through two controlled drought cycles.\nThe controlled sapling experiment did not test mature forests or seasonal variation under field conditions.\nModerate drought increased isoprene emissions in one species but not the other two in the simulated observations.\nSevere drought reduced emissions in all three simulated species relative to their watered controls.",
+      "authors": [
+        "A. Example（模拟作者）",
+        "B. Example（模拟作者）"
+      ],
+      "journal": "DEMO 合成研究示例（非真实期刊）",
+      "publication_date": "2026-10-01",
+      "publication_date_label": "固定示例日期；非发表记录",
+      "index_date": "",
+      "kind": "合成演示文献；非真实发表、非同行评审",
+      "pmcid": "",
+      "open_access": false,
+      "full_text": "DEMO / SYNTHETIC SOURCE. All studies, authors, observations, and results below are invented for an offline layout preview.\n\nThe synthetic design evaluates species-specific emission responses rather than assuming a uniform drought effect.\nWe ask how drought intensity changes volatile emissions across tree species.\nRepeated branch-chamber sampling and gas chromatography were analyzed using species-by-treatment mixed-effects models.\nThe simulated experiment followed 72 saplings from three tree species through two controlled drought cycles.\nThe controlled sapling experiment did not test mature forests or seasonal variation under field conditions.\nModerate drought increased isoprene emissions in one species but not the other two in the simulated observations.\nSevere drought reduced emissions in all three simulated species relative to their watered controls.",
+      "full_text_url": "",
+      "evidence_level": "本地合成证据示例；非真实论文正文",
+      "tracks": [
+        "bvoc"
+      ],
+      "source_aliases": [],
+      "provenance": [
+        {
+          "source": "demo",
+          "synthetic": true,
+          "retrieved": false,
+          "identifier": "demo:forest-bvoc",
+          "note": "Authored offline fixture; example.org links are placeholders, not research sources."
+        }
+      ],
+      "analysis": {
+        "mode": "synthetic_demo",
+        "synthetic": true,
+        "language": "zh-CN",
+        "fields": {
+          "highlights": [
+            {
+              "text": "该合成设计分别检验树种特异性的排放响应，而不预设所有树种具有一致的干旱效应。",
+              "evidence": "The synthetic design evaluates species-specific emission responses rather than assuming a uniform drought effect."
+            }
+          ],
+          "question": [
+            {
+              "text": "该合成研究考察不同干旱强度如何改变不同树种的挥发物排放。",
+              "evidence": "We ask how drought intensity changes volatile emissions across tree species."
+            }
+          ],
+          "methods": [
+            {
+              "text": "研究采用重复枝条气室采样与气相色谱测量，并以树种与处理的交互项建立混合效应模型。",
+              "evidence": "Repeated branch-chamber sampling and gas chromatography were analyzed using species-by-treatment mixed-effects models."
+            },
+            {
+              "text": "模拟实验对三个树种的72株幼树实施两个受控干旱周期并进行跟踪测量。",
+              "evidence": "The simulated experiment followed 72 saplings from three tree species through two controlled drought cycles."
+            },
+            {
+              "text": "研究范围限于受控幼树实验；成熟森林与野外季节变化未接受检验。",
+              "evidence": "The controlled sapling experiment did not test mature forests or seasonal variation under field conditions."
+            }
+          ],
+          "findings": [
+            {
+              "text": "模拟观测中，中度干旱提高了一个树种的异戊二烯排放，而另两个树种未出现这一变化。",
+              "evidence": "Moderate drought increased isoprene emissions in one species but not the other two in the simulated observations."
+            },
+            {
+              "text": "相对于各自的正常供水对照，三个模拟树种在重度干旱下的排放均降低。",
+              "evidence": "Severe drought reduced emissions in all three simulated species relative to their watered controls."
+            }
+          ]
+        },
+        "notice": "合成示例分析；未调用模型；逐条锚点可在示例源文中核对。"
+      },
+      "warnings": [
+        "DEMO：所有数据与结果均为虚构，仅用于预览。"
+      ],
+      "arxiv_id": "",
+      "relations": [],
+      "figures": [],
+      "key": "demo:forest-bvoc",
+      "evidence_sha256": "77b1d7fc527e3b5bb136acaa2d0640251aedbc4e1d800bd8e8715b6b174ff662"
+    },
+    {
+      "title": "[DEMO / SYNTHETIC 合成示例] 结合季节光谱与结构观测进行树种制图",
+      "source_id": "canopy-species",
+      "source": "demo",
+      "url": "https://example.org/demo/canopy-species",
+      "doi": "",
+      "abstract": "DEMO / SYNTHETIC SOURCE. All studies, authors, observations, and results below are invented for an offline layout preview.\n\nThe synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination.\nWe ask whether seasonal spectral and canopy-height information improve tree-species discrimination.\nA random-forest classifier combined two-season hyperspectral imagery with lidar canopy-height features.\nThe synthetic dataset contains 120 four-species plots; training and evaluation use spatially separate stands.\nThe comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested.\nSimulated held-out macro-F1 was 0.82 for spectral-plus-height features and 0.74 for the single-season spectral baseline.",
+      "authors": [
+        "A. Example（模拟作者）",
+        "B. Example（模拟作者）"
+      ],
+      "journal": "DEMO 合成研究示例（非真实期刊）",
+      "publication_date": "2026-10-01",
+      "publication_date_label": "固定示例日期；非发表记录",
+      "index_date": "",
+      "kind": "合成演示文献；非真实发表、非同行评审",
+      "pmcid": "",
+      "open_access": false,
+      "full_text": "DEMO / SYNTHETIC SOURCE. All studies, authors, observations, and results below are invented for an offline layout preview.\n\nThe synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination.\nWe ask whether seasonal spectral and canopy-height information improve tree-species discrimination.\nA random-forest classifier combined two-season hyperspectral imagery with lidar canopy-height features.\nThe synthetic dataset contains 120 four-species plots; training and evaluation use spatially separate stands.\nThe comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested.\nSimulated held-out macro-F1 was 0.82 for spectral-plus-height features and 0.74 for the single-season spectral baseline.",
+      "full_text_url": "",
+      "evidence_level": "本地合成证据示例；非真实论文正文",
+      "tracks": [
+        "tree_species"
+      ],
+      "source_aliases": [],
+      "provenance": [
+        {
+          "source": "demo",
+          "synthetic": true,
+          "retrieved": false,
+          "identifier": "demo:canopy-species",
+          "note": "Authored offline fixture; example.org links are placeholders, not research sources."
+        }
+      ],
+      "analysis": {
+        "mode": "synthetic_demo",
+        "synthetic": true,
+        "language": "zh-CN",
+        "fields": {
+          "highlights": [
+            {
+              "text": "该合成制图流程融合季节光谱与冠层高度观测，用于区分树种。",
+              "evidence": "The synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination."
+            }
+          ],
+          "question": [
+            {
+              "text": "该合成研究检验季节光谱与冠层高度信息能否改善树种区分。",
+              "evidence": "We ask whether seasonal spectral and canopy-height information improve tree-species discrimination."
+            }
+          ],
+          "methods": [
+            {
+              "text": "模拟流程在随机森林分类器中融合两个季节的高光谱影像与激光雷达高度特征。",
+              "evidence": "A random-forest classifier combined two-season hyperspectral imagery with lidar canopy-height features."
+            },
+            {
+              "text": "模拟数据集含覆盖四个树种的120个样地，训练与评估采用空间分离的林分。",
+              "evidence": "The synthetic dataset contains 120 four-species plots; training and evaluation use spatially separate stands."
+            },
+            {
+              "text": "模拟比较仅覆盖一个地点，跨森林、跨传感器及稀有树种的迁移能力尚未接受检验。",
+              "evidence": "The comparison covers one simulated site; transfer to other forests, sensors, and rare species remains untested."
+            }
+          ],
+          "findings": [
+            {
+              "text": "在模拟的留出林分中，光谱与高度融合的宏平均F1为0.82，单季光谱基线为0.74。",
+              "evidence": "Simulated held-out macro-F1 was 0.82 for spectral-plus-height features and 0.74 for the single-season spectral baseline."
+            }
+          ]
+        },
+        "notice": "合成示例分析；未调用模型；逐条锚点可在示例源文中核对。"
+      },
+      "warnings": [
+        "DEMO：所有数据与结果均为虚构，仅用于预览。"
+      ],
+      "arxiv_id": "",
+      "relations": [],
+      "figures": [],
+      "key": "demo:canopy-species",
+      "evidence_sha256": "0a4579b8d5bfea92730761a727def74afa081667fa7b800ba7ca5b16a7d52d54"
+    }
+  ],
+  "excluded": []
+}

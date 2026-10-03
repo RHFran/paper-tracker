@@ -1,0 +1,12 @@
+# EXAMPLE ONLY. Tick checks each profile's configured local schedule.
+[Unit]
+Description=Check Paper Tracker schedules every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=1s
+Unit=literature-digest.service
+
+[Install]
+WantedBy=timers.target

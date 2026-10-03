@@ -1,0 +1,40 @@
+name: Offline tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package (no runtime dependencies)
+        run: python -m pip install --no-deps .
+      - name: Offline unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Compile and CLI smoke check
+        run: |
+          python -m compileall -q literature_digest
+          paper-tracker --help
+          literature-digest --help
+          paper-tracker --config config.example.json validate
+          paper-tracker --config config.profiles.example.json validate
+          paper-tracker --config templates/profiles.example.json validate
+      - name: Offline preview smoke check
+        run: |
+          cp config.example.json "$RUNNER_TEMP/digest-config.json"
+          paper-tracker --config "$RUNNER_TEMP/digest-config.json" preview --language en
+          paper-tracker --config "$RUNNER_TEMP/digest-config.json" preview --language zh-CN

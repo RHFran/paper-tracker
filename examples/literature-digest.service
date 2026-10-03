@@ -1,0 +1,16 @@
+# EXAMPLE ONLY. Review paths and --send before installing or enabling.
+[Unit]
+Description=Check due Paper Tracker profiles
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=YOUR_USER
+WorkingDirectory=/absolute/path/paper-tracker
+EnvironmentFile=/absolute/private/path/literature-digest.env
+ExecStart=/absolute/path/paper-tracker/.venv/bin/python -m literature_digest --config /absolute/private/path/config.json tick --send
+# State/output paths in config must be durable and writable by YOUR_USER.
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true

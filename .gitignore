@@ -1,0 +1,43 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+config.json
+config.*.json
+!config.example.json
+!config.profiles.example.json
+*.local.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
+*.bak
+*.backup
+*.old
+# Private generated reports, state, and runtime mounts
+state/
+output/
+runtime/
+profiles/
+*.sqlite3
+*.sqlite3-*
+*.sqlite3.lock
+*.db
+*.db-*
+*.lock
+# Python/build files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+.pytest_cache/
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/

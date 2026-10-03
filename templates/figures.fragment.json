@@ -1,0 +1,16 @@
+{
+  "images": {"mode": "links", "max_per_paper": 3},
+  "figure_catalog": {
+    "REPLACE_WITH_PAPER_KEY_FROM_AUDIT": [
+      {
+        "id": "figure-1",
+        "caption": "Replace with the original figure caption.",
+        "source_url": "https://example.org/replace-with-original-figure-page",
+        "url": "",
+        "license": "",
+        "license_scope": "unknown",
+        "attribution": ""
+      }
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+# Only runtime source enters the image build context.
+*
+!Dockerfile
+!.dockerignore
+!literature_digest/
+!literature_digest/**
+literature_digest/**/__pycache__/
+literature_digest/**/*.pyc

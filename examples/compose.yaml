@@ -1,0 +1,15 @@
+# EXAMPLE ONLY. The foreground scheduler stays dry-run until --send is added.
+services:
+  digest:
+    build: ..
+    command: ["--config", "/data/config.json", "schedule"]
+    env_file:
+      - ../.env
+    volumes:
+      - ../runtime:/data
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true

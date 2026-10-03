@@ -1,0 +1,4 @@
+# EXAMPLE ONLY. Install nothing until you have reviewed a dry run.
+# The wrapper loads secrets; keep both it and its environment file private.
+# tick evaluates profile-local weekdays/timezones, independently of cron timezone.
+* * * * * /absolute/private/path/run-digest-tick.sh >> /absolute/private/path/digest.log 2>&1

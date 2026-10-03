@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paper-tracker"
+version = "2.0.0"
+description = "Configurable, evidence-grounded research digests with safe scheduled email delivery"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+dependencies = []
+keywords = ["literature", "research", "digest", "crossref", "europe-pmc"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+]
+
+[project.scripts]
+paper-tracker = "literature_digest.cli:main"
+literature-digest = "literature_digest.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["literature_digest*"]

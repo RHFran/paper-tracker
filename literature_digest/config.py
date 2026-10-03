@@ -1,0 +1,194 @@
+"""Strict public configuration: operator settings plus isolated reader profiles."""
+from __future__ import annotations
+
+import copy
+import json
+import re
+from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+DEFAULTS = {
+    "profile_id": "default",
+    "recipient": "researcher@example.org",
+    "timezone": "Asia/Shanghai",
+    "language": "zh-CN",
+    "topics": None,  # Retains the v1 two-topic behavior for existing configurations.
+    "schedule": {"time": "08:30", "weekdays": [0, 1, 2, 3, 4, 5, 6], "catch_up": True},
+    "publication_window_days": 7,
+    "state_path": "state/digest.sqlite3",
+    "output_dir": "output",
+    "contact_email": "",
+    "sources": ["crossref", "europepmc"],
+    "page_size": 100,
+    "max_pages_per_query": 20,
+    "http_timeout_seconds": 45,
+    "http_retries": 3,
+    "fetch_full_text": False,
+    "include_preprints": True,
+    "max_papers_per_track": 20,
+    "images": {"mode": "off", "max_per_paper": 3},
+    "figure_catalog": {},
+    "llm": {"enabled": False, "base_url_env": "LITERATURE_LLM_BASE_URL", "api_key_env": "LITERATURE_LLM_API_KEY", "model_env": "LITERATURE_LLM_MODEL", "max_evidence_chars": 60000},
+    "mail": {"enabled": False, "host_env": "LITERATURE_SMTP_HOST", "port": 465, "security": "ssl", "user_env": "LITERATURE_SMTP_USER", "password_env": "LITERATURE_SMTP_PASSWORD", "from_env": "LITERATURE_MAIL_FROM"},
+}
+PROFILE_FIELDS = {"id", "recipient", "timezone", "language", "topics", "schedule", "images", "publication_window_days", "include_preprints", "max_papers_per_track"}
+ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
+
+
+def valid_email(value: str) -> bool:
+    return isinstance(value, str) and len(value) <= 254 and not any(ord(c) < 32 or ord(c) == 127 for c in value) and re.fullmatch(r"[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+", value) is not None
+
+
+def _positive(value, label, maximum=100000):
+    if type(value) is not int or not 1 <= value <= maximum:
+        raise ValueError(f"{label} must be an integer between 1 and {maximum}")
+
+
+def _strings(value, label, required=False):
+    if not isinstance(value, list) or (required and not value) or len(value) > 100:
+        raise ValueError(f"{label} must be a list of 1–100 strings" if required else f"{label} must be a list of strings")
+    if any(not isinstance(s, str) or not s.strip() or len(s) > 500 or any(ord(c) < 32 for c in s) for s in value):
+        raise ValueError(f"{label} contains an invalid or empty string")
+
+
+def _merge(base, supplied):
+    result = copy.deepcopy(base)
+    for key, value in supplied.items():
+        if key in ("llm", "mail", "schedule", "images"):
+            if not isinstance(value, dict) or set(value) - set(DEFAULTS[key]):
+                raise ValueError(f"Invalid or unknown {key} settings")
+            result[key].update(value)
+        else:
+            result[key] = copy.deepcopy(value)
+    return result
+
+
+def validate_config(c):
+    if not isinstance(c["profile_id"], str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}", c["profile_id"]):
+        raise ValueError("Profile id must be 1–64 letters, digits, hyphens or underscores")
+    if not valid_email(c["recipient"]):
+        raise ValueError("recipient must be a single email address")
+    if c["contact_email"] and not valid_email(c["contact_email"]):
+        raise ValueError("contact_email must be a single email address")
+    try:
+        ZoneInfo(c["timezone"])
+    except (ValueError, TypeError, ZoneInfoNotFoundError):
+        raise ValueError("timezone must be an installed IANA timezone, e.g. Asia/Shanghai") from None
+    if not isinstance(c["language"], str) or not re.fullmatch(r"[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*", c["language"]):
+        raise ValueError("language must be a language tag, e.g. zh-CN, en, de or ja")
+    if not isinstance(c["sources"], list) or not c["sources"] or any(not isinstance(source, str) for source in c["sources"]) or set(c["sources"]) - {"crossref", "europepmc", "arxiv"}:
+        raise ValueError("sources must contain crossref, europepmc and/or arxiv")
+    if len(c["sources"]) != len(set(c["sources"])):
+        raise ValueError("Duplicate sources are not allowed")
+    for key, maximum in {"publication_window_days": 3650, "page_size": 1000, "max_pages_per_query": 1000, "max_papers_per_track": 100, "http_timeout_seconds": 300, "http_retries": 10}.items():
+        _positive(c[key], key, maximum)
+    for key in ("fetch_full_text", "include_preprints"):
+        if type(c[key]) is not bool:
+            raise ValueError(f"{key} must be true or false")
+    for key in ("llm", "mail"):
+        if type(c[key]["enabled"]) is not bool:
+            raise ValueError(f"{key}.enabled must be true or false")
+        for name, value in c[key].items():
+            if name.endswith("_env") and (not isinstance(value, str) or not ENV_NAME.fullmatch(value)):
+                raise ValueError(f"{key}.{name} must be an environment variable name, never a secret")
+    _positive(c["llm"]["max_evidence_chars"], "llm.max_evidence_chars", 500000)
+    if c["llm"]["max_evidence_chars"] < 100:
+        raise ValueError("llm.max_evidence_chars must be at least 100")
+    if c["mail"]["security"] not in ("ssl", "starttls"):
+        raise ValueError("Only encrypted SMTP is supported: ssl or starttls")
+    _positive(c["mail"]["port"], "mail.port", 65535)
+    if c["images"]["mode"] not in ("off", "links", "embed"):
+        raise ValueError("images.mode must be off, links or embed")
+    _positive(c["images"]["max_per_paper"], "images.max_per_paper", 10)
+    if not isinstance(c["figure_catalog"], dict):
+        raise ValueError("figure_catalog must be an object keyed by canonical paper identifiers")
+    for key, figures in c["figure_catalog"].items():
+        if not isinstance(key, str) or not isinstance(figures, list) or len(figures) > 20:
+            raise ValueError("figure_catalog entries must be lists of up to 20 figures")
+        for figure in figures:
+            allowed = {"id", "caption", "url", "source_url", "license", "license_scope", "attribution"}
+            if not isinstance(figure, dict) or set(figure) - allowed or any(not isinstance(v, str) or len(v) > 2000 for v in figure.values()):
+                raise ValueError("figure_catalog figure metadata must use supported text fields")
+            if figure.get("license_scope", "unknown") not in ("figure", "unknown", "article"):
+                raise ValueError("Figure license_scope must be figure, article or unknown")
+    s = c["schedule"]
+    if not isinstance(s["time"], str) or not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", s["time"]):
+        raise ValueError("schedule.time must be HH:MM in the profile timezone")
+    if not isinstance(s["weekdays"], list) or not s["weekdays"] or any(type(d) is not int or not 0 <= d <= 6 for d in s["weekdays"]) or len(set(s["weekdays"])) != len(s["weekdays"]):
+        raise ValueError("schedule.weekdays must be unique integers 0=Monday through 6=Sunday")
+    if type(s["catch_up"]) is not bool:
+        raise ValueError("schedule.catch_up must be true or false")
+    if c["topics"] is not None:
+        if not isinstance(c["topics"], list) or not 1 <= len(c["topics"]) <= 25:
+            raise ValueError("topics must contain 1–25 topic objects")
+        ids = set()
+        for topic in c["topics"]:
+            if not isinstance(topic, dict) or set(topic) - {"id", "name", "queries", "include_any", "include_all", "exclude_any", "source_queries"}:
+                raise ValueError("Invalid topic fields")
+            tid = topic.get("id", "")
+            if not isinstance(tid, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}", tid) or tid in ids:
+                raise ValueError("Each topic needs a unique safe id")
+            ids.add(tid)
+            _strings([topic.get("name", "")], "topic.name", True)
+            _strings(topic.get("queries"), "topic.queries", True)
+            for field in ("include_any", "include_all", "exclude_any"):
+                _strings(topic.get(field, []), f"topic.{field}")
+            overrides = topic.get("source_queries", {})
+            if not isinstance(overrides, dict) or set(overrides) - {"crossref", "europepmc", "arxiv"}:
+                raise ValueError("topic.source_queries has an unsupported source")
+            for source, queries in overrides.items():
+                _strings(queries, f"source_queries.{source}", True)
+    for key in ("state_path", "output_dir"):
+        if not isinstance(c[key], str) or not c[key] or "\x00" in c[key]:
+            raise ValueError(f"{key} must be a path")
+    return c
+
+
+def load_configs(path: str) -> list[dict]:
+    p = Path(path).resolve()
+    supplied = json.loads(p.read_text(encoding="utf-8"))
+    if not isinstance(supplied, dict):
+        raise ValueError("Configuration must be a JSON object")
+    unknown = set(supplied) - set(DEFAULTS) - {"profiles"}
+    if unknown:
+        raise ValueError("Unknown configuration fields: " + ", ".join(sorted(unknown)))
+    profiles = supplied.pop("profiles", None)
+    base = _merge(DEFAULTS, supplied)
+    if profiles is None:
+        configurations = [validate_config(base)]
+    else:
+        if not isinstance(profiles, list) or not profiles or len(profiles) > 100:
+            raise ValueError("profiles must contain 1–100 reader profiles")
+        configurations, seen = [], set()
+        for profile in profiles:
+            if not isinstance(profile, dict) or set(profile) - PROFILE_FIELDS:
+                raise ValueError("Reader profiles may only override reader settings")
+            profile = dict(profile)
+            identifier = profile.pop("id", "")
+            if not isinstance(identifier, str):
+                raise ValueError("Profile id must be text")
+            if identifier in seen:
+                raise ValueError("Profile ids must be unique")
+            seen.add(identifier)
+            c = _merge(base, {**profile, "profile_id": identifier})
+            validate_config(c)
+            # Isolate all outboxes, checkpoints, paper deduplication and previews by reader.
+            state = Path(c["state_path"])
+            c["state_path"] = str(state.parent / identifier / state.name)
+            c["output_dir"] = str(Path(c["output_dir"]) / identifier)
+            configurations.append(c)
+    for c in configurations:
+        for key in ("state_path", "output_dir"):
+            c[key] = str((p.parent / c[key]).resolve())
+    return configurations
+
+
+def load_config(path: str, profile: str | None = None) -> dict:
+    configs = load_configs(path)
+    if profile:
+        configs = [c for c in configs if c["profile_id"] == profile]
+        if not configs:
+            raise ValueError("Unknown profile id")
+    if len(configs) != 1:
+        raise ValueError("This config has multiple profiles; select one with --profile")
+    return configs[0]

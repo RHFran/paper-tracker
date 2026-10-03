@@ -1,0 +1,44 @@
+{
+  "sources": ["crossref", "europepmc"],
+  "state_path": "state/digest.sqlite3",
+  "output_dir": "output",
+  "publication_window_days": 7,
+  "llm": {"enabled": false},
+  "mail": {"enabled": false},
+  "profiles": [
+    {
+      "id": "climate-en",
+      "recipient": "climate-reader@example.org",
+      "timezone": "Europe/London",
+      "language": "en",
+      "schedule": {"time": "08:30", "weekdays": [0, 1, 2, 3, 4], "catch_up": true},
+      "topics": [
+        {
+          "id": "climate-adaptation",
+          "name": "Climate adaptation",
+          "queries": ["urban climate adaptation", "urban heat resilience"],
+          "include_any": ["climate adaptation", "heat resilience"],
+          "include_all": [],
+          "exclude_any": []
+        }
+      ]
+    },
+    {
+      "id": "materials-zh",
+      "recipient": "materials-reader@example.org",
+      "timezone": "Asia/Shanghai",
+      "language": "zh-CN",
+      "schedule": {"time": "18:00", "weekdays": [0, 2, 4], "catch_up": true},
+      "topics": [
+        {
+          "id": "battery-recycling",
+          "name": "电池回收",
+          "queries": ["lithium ion battery recycling"],
+          "include_any": ["battery", "batteries"],
+          "include_all": ["recycling"],
+          "exclude_any": []
+        }
+      ]
+    }
+  ]
+}

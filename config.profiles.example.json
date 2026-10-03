@@ -1,0 +1,105 @@
+{
+  "timezone": "UTC",
+  "language": "en",
+  "schedule": {
+    "time": "08:30",
+    "weekdays": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "catch_up": true
+  },
+  "publication_window_days": 7,
+  "state_path": "state/digest.sqlite3",
+  "output_dir": "output",
+  "contact_email": "",
+  "sources": [
+    "crossref",
+    "europepmc"
+  ],
+  "page_size": 100,
+  "max_pages_per_query": 20,
+  "http_timeout_seconds": 45,
+  "http_retries": 3,
+  "fetch_full_text": false,
+  "include_preprints": true,
+  "max_papers_per_track": 10,
+  "images": {
+    "mode": "off",
+    "max_per_paper": 3
+  },
+  "figure_catalog": {},
+  "llm": {
+    "enabled": false,
+    "base_url_env": "LITERATURE_LLM_BASE_URL",
+    "api_key_env": "LITERATURE_LLM_API_KEY",
+    "model_env": "LITERATURE_LLM_MODEL",
+    "max_evidence_chars": 60000
+  },
+  "mail": {
+    "enabled": false,
+    "host_env": "LITERATURE_SMTP_HOST",
+    "port": 465,
+    "security": "ssl",
+    "user_env": "LITERATURE_SMTP_USER",
+    "password_env": "LITERATURE_SMTP_PASSWORD",
+    "from_env": "LITERATURE_MAIL_FROM"
+  },
+  "profiles": [
+    {
+      "id": "ecology-zh",
+      "recipient": "reader-one@example.org",
+      "language": "zh-CN",
+      "timezone": "Asia/Shanghai",
+      "schedule": {
+        "time": "08:30"
+      },
+      "topics": [
+        {
+          "id": "ecology",
+          "name": "森林碳通量",
+          "queries": [
+            "forest carbon flux"
+          ],
+          "include_any": [
+            "forest",
+            "carbon"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "battery-en",
+      "recipient": "reader-two@example.org",
+      "language": "en",
+      "timezone": "America/New_York",
+      "schedule": {
+        "time": "09:00",
+        "weekdays": [
+          0,
+          2,
+          4
+        ]
+      },
+      "topics": [
+        {
+          "id": "batteries",
+          "name": "Solid-state batteries",
+          "queries": [
+            "solid state battery electrolyte"
+          ],
+          "include_any": [
+            "battery",
+            "batteries",
+            "electrolyte"
+          ]
+        }
+      ]
+    }
+  ]
+}

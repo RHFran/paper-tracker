@@ -1,0 +1,54 @@
+DEMO / Synthetic research digest preview | 2026-10-03 · UTC
+Publication window: 2026-09-26 (fixed synthetic fixture) – 2026-10-03
+
+DEMO / SYNTHETIC: all papers, authors, journals, dates, data, and findings are invented. No sources queried, model called, mail sent, or delivery state changed.
+
+2 Demo records · 2 Papers selected · 2 Research topics
+
+Research overview
+These synthetic studies examine differences among forest tree species through volatile-emission responses and discrimination from canopy observations. [1,2] In the simulated sapling observations, moderate drought increases isoprene emissions in only one of three species, illustrating a species-dependent response within this experiment. [1] For the simulated mapping task, spectral-plus-height features achieve held-out macro-F1 of 0.82 compared with 0.74 for the single-season spectral baseline. [2] The examples remain bounded by a controlled sapling experiment and a single-site classification comparison, leaving mature-forest responses and cross-site performance unresolved. [1,2]
+
+
+Forest volatiles and drought responses
+
+[1] [DEMO / SYNTHETIC] Drought intensity and species-specific canopy volatile emissions
+Synthetic fixture text
+DEMO Synthetic Research (not a real journal) · 2026-10-01
+Authors: A. Example (simulated author); B. Example (simulated author)
+Core highlights:
+- The synthetic design evaluates species-specific emission responses instead of assuming a uniform drought effect. [1]
+Scientific question:
+- This synthetic study asks how drought intensity changes volatile emissions across tree species. [1]
+Experimental or model methods:
+- Repeated branch-chamber sampling and gas chromatography were analyzed with species-by-treatment mixed-effects models. [1]
+- The simulated experiment followed 72 saplings from three tree species through two controlled drought cycles. [1]
+- Interpretation is limited to controlled sapling experiments; mature forests and seasonal field variation were not tested. [1]
+Main results:
+- In the simulated observations, moderate drought increased isoprene emissions in one species but not the other two. [1]
+- Severe drought reduced emissions in all three simulated species relative to their watered controls. [1]
+Read paper: https://example.org/demo/forest-bvoc
+
+Remote-sensing tree-species mapping
+
+[2] [DEMO / SYNTHETIC] Seasonal spectral and structural observations for tree-species mapping
+Synthetic fixture text
+DEMO Synthetic Research (not a real journal) · 2026-10-01
+Authors: A. Example (simulated author); B. Example (simulated author)
+Core highlights:
+- The synthetic mapping workflow integrates seasonal spectral and canopy-height observations for tree-species discrimination. [2]
+Scientific question:
+- This synthetic study asks whether seasonal spectral and canopy-height information improve tree-species discrimination. [2]
+Experimental or model methods:
+- The simulated workflow combines two-season hyperspectral imagery with lidar height features in a random-forest classifier. [2]
+- The simulated dataset contains 120 plots covering four tree species; training and evaluation use spatially separate stands. [2]
+- The simulated comparison covers one site; transfer to other forests, sensors, and rare species remains untested. [2]
+Main results:
+- In the simulated held-out stands, spectral-plus-height features achieve macro-F1 0.82 versus 0.74 for the single-season spectral baseline. [2]
+Read paper: https://example.org/demo/canopy-species
+
+References
+1. A. Example (simulated author), B. Example (simulated author). [DEMO / SYNTHETIC] Drought intensity and species-specific canopy volatile emissions. DEMO Synthetic Research (not a real journal). 2026-10-01. https://example.org/demo/forest-bvoc
+2. A. Example (simulated author), B. Example (simulated author). [DEMO / SYNTHETIC] Seasonal spectral and structural observations for tree-species mapping. DEMO Synthetic Research (not a real journal). 2026-10-01. https://example.org/demo/canopy-species
+
+Synthetic demonstration for layout, functionality and citation numbering only.
+Claim-level evidence and retrieval records are in the accompanying audit JSON. Anchor matching checks provenance; model interpretations still need source review.
