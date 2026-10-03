@@ -58,7 +58,19 @@ repository `.html` files as source.
 
 ## Install with your agent
 
-Give **Codex, Claude Code, ChatGPT or dot** this source repository and ask:
+Give **Codex, Claude Code, ChatGPT or dot** a request like this (replace the topics and email):
+
+> Please install and use Super Paper radar ([https://github.com/RHFran/super-paper-radar.git](https://github.com/RHFran/super-paper-radar.git)).
+> Every day at 8:30 a.m. Beijing time (Asia/Shanghai), search for, screen and explain
+> recent papers on these two topics: [xxxx, xxxxx]. Prepare the digest in Chinese
+> and send it to yourname@example.com.
+
+You can request one topic or several, change the time and timezone, or choose a
+frequency such as every Monday and Friday. Use separate profiles when topics need
+different schedules. Replace the example address with your own privately; do not
+commit real recipient addresses to a public repository.
+
+For installation, also ask:
 
 > Install Super Paper radar using its setup script. Configure my research
 > topics, language and local schedule. Check whether Codex or Claude Code is
@@ -235,7 +247,17 @@ Agent 自主规划检索、阅读证据、筛选论文并组织简报，调用�
 
 ## 让 Agent 帮你安装
 
-把这份源码项目交给 **Codex、Claude Code、ChatGPT 或 dot**，告诉它：
+把这段示例交给 **Codex、Claude Code、ChatGPT 或 dot**，替换主题和邮箱即可：
+
+> 请安装并使用 Super Paper radar（[https://github.com/RHFran/super-paper-radar.git](https://github.com/RHFran/super-paper-radar.git)）。
+> 每天北京时间上午 8:30，围绕【xxxx，xxxxx】这两个主题，检索、筛选并解读近期论文，
+> 用中文整理后发送到 yourname@example.com。
+
+主题可以是一个或多个，时间、时区和频率也可修改，例如“每周一、周五上午 8:30”。
+北京时间对应 `Asia/Shanghai`；不同主题需要不同计划时，使用独立档案。
+请在自己的私有配置中替换示例邮箱，不要把真实收件地址提交到公开仓库。
+
+安装时，也请告诉 Agent：
 
 > 使用项目自带的脚本安装 Super Paper radar，配置我的研究主题、语言和当地运行计划。
 > 检查执行机器上是否已经安装并登录 Codex 或 Claude Code。使用 Agent 主导模式，
