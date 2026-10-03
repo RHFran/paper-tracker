@@ -1,0 +1,105 @@
+{
+  "recipient": "researcher@example.org",
+  "timezone": "Asia/Shanghai",
+  "language": "en",
+  "schedule": {
+    "time": "08:30",
+    "weekdays": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "catch_up": true
+  },
+  "llm": {
+    "enabled": false
+  },
+  "mail": {
+    "enabled": false
+  },
+  "publication_window_days": 7,
+  "state_path": "state/digest.sqlite3",
+  "output_dir": "output",
+  "sources": [
+    "crossref",
+    "europepmc"
+  ],
+  "max_papers_per_track": 10,
+  "images": {
+    "mode": "off",
+    "max_per_paper": 3
+  },
+  "profiles": [
+    {
+      "id": "bvoc-monday",
+      "schedule": {
+        "time": "08:30",
+        "weekdays": [
+          0
+        ]
+      },
+      "topics": [
+        {
+          "id": "bvoc",
+          "name": "Biogenic volatile organic compounds (BVOCs)",
+          "queries": [
+            "biogenic volatile organic compounds",
+            "BVOC emissions"
+          ],
+          "include_any": [
+            "biogenic volatile organic",
+            "BVOC"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tree-species-wednesday",
+      "schedule": {
+        "time": "09:00",
+        "weekdays": [
+          2
+        ]
+      },
+      "topics": [
+        {
+          "id": "tree-species",
+          "name": "Remote sensing of tree species",
+          "queries": [
+            "tree species mapping hyperspectral",
+            "tree species classification lidar"
+          ],
+          "include_any": [
+            "tree species",
+            "forest species"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "urban-forest-date",
+      "schedule": {
+        "time": "10:00",
+        "dates": [
+          "2027-03-15"
+        ]
+      },
+      "topics": [
+        {
+          "id": "urban-forest",
+          "name": "Urban forests and heat mitigation",
+          "queries": [
+            "urban forest heat mitigation",
+            "urban trees cooling"
+          ],
+          "include_any": [
+            "urban forest",
+            "urban trees"
+          ]
+        }
+      ]
+    }
+  ]
+}

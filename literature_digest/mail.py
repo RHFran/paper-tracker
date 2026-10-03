@@ -7,7 +7,9 @@ from email.message import EmailMessage
 from email.utils import format_datetime
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+from .analysis import require_llm, require_analysis_payload
 from .config import valid_email
+from .references import validate_reference_files
 
 
 class MailSetupError(RuntimeError):
@@ -34,6 +36,8 @@ def smtp_settings(config):
 
 def send_smtp(payload, config, state, digest_id, smtp_ssl=smtplib.SMTP_SSL, smtp_starttls=smtplib.SMTP, now=None):
     """Injectable adapter. Unknown post-DATA outcomes are never automatically retried."""
+    require_llm(config)
+    require_analysis_payload(payload)
     if not valid_email(payload.get("recipient")) or any(c in payload.get("subject", "") for c in "\r\n"):
         raise MailSetupError("Invalid recipient or mail header")
     local_today = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(config["timezone"])).date().isoformat()
@@ -41,6 +45,10 @@ def send_smtp(payload, config, state, digest_id, smtp_ssl=smtplib.SMTP_SSL, smtp
         raise MailSetupError("待发送日报不是今天生成的，已拒绝过期原稿；请 run --send 重新生成当前窗口日报")
     if state.payload_has_sent_aliases(payload):
         raise MailSetupError("这份待发送日报包含已在其他日报发送的论文，拒绝重复发送；请重新生成当前日报")
+    try:
+        references = validate_reference_files(payload.get("reference_files", []))
+    except ValueError as exc:
+        raise MailSetupError(str(exc)) from None
     values = smtp_settings(config)
     message = EmailMessage()
     message["From"], message["To"] = values["from"], payload["recipient"]
@@ -49,6 +57,10 @@ def send_smtp(payload, config, state, digest_id, smtp_ssl=smtplib.SMTP_SSL, smtp
     message["Message-ID"] = f"<{digest_id}@literature-digest.local>"
     message.set_content(payload["text"])
     message.add_alternative(payload["html"], subtype="html")
+    for item in references:
+        maintype, subtype = item["content_type"].split("/", 1)
+        message.add_attachment(item["content"].encode("utf-8"), maintype=maintype, subtype=subtype,
+                               filename=item["filename"], params={"charset": "utf-8"})
     server = None
     accepted = False
     try:

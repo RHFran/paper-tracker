@@ -14,23 +14,34 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class PublicationTest(unittest.TestCase):
     def test_preferred_and_legacy_cli_entry_points_are_identical(self):
-        project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
         self.assertEqual(project["name"], "paper-tracker")
         self.assertEqual(project["scripts"]["paper-tracker"], "literature_digest.cli:main")
         self.assertEqual(project["scripts"]["literature-digest"], project["scripts"]["paper-tracker"])
-        self.assertEqual(project["dependencies"], [])
+        # Only native Windows needs the IANA timezone database package.
+        self.assertEqual(project["dependencies"], ["tzdata>=2024.1; sys_platform == 'win32'"])
 
     def test_bilingual_readmes_link_to_reproducible_examples(self):
-        for filename in ("README.md", "README_中文.md"):
-            text = (ROOT / filename).read_text()
+        for filename, guide, setup in (("README.md", "user-guide.md", "platform-setup.md"),
+                                       ("README_中文.md", "user-guide_中文.md", "platform-setup_中文.md")):
+            text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertTrue(text.startswith("# Paper Tracker"))
+            for relative in ("examples/preview/README.md", "docs/" + guide, "docs/" + setup):
+                self.assertIn(f"]({relative})", text)
+            self.assertIn("https://rhfran.github.io/paper-tracker/", text)
+            details = (ROOT / "docs" / guide).read_text(encoding="utf-8")
             for language in ("en", "zh-CN"):
                 for extension in ("html", "txt", "json"):
                     relative = f"examples/preview/demo.{language}.{extension}"
-                    self.assertIn(f"]({relative})", text)
+                    self.assertIn(f"](../{relative})", details)
                     self.assertTrue((ROOT / relative).is_file())
+                for extension in ("ris", "bib"):
+                    self.assertTrue((ROOT / f"examples/preview/demo.{language}.{extension}").is_file())
             self.assertIn("paper-tracker", text)
-            self.assertIn("literature-digest", text)
+            self.assertIn("literature-digest", details)
+        english = (ROOT / "README.md").read_text(encoding="utf-8")
+        chinese = (ROOT / "README_中文.md").read_text(encoding="utf-8")
+        self.assertEqual(english.split('<a id="中文说明"></a>\n\n', 1)[1], chinese)
 
     def test_checked_in_demo_files_match_the_generator(self):
         config = load_configs(str(ROOT / "config.example.json"))[0]
@@ -43,17 +54,17 @@ class PublicationTest(unittest.TestCase):
                     fixture = ROOT / "examples/preview" / f"demo.{language}.{extension}"
                     with self.subTest(language=language, extension=extension):
                         self.assertEqual(Path(generated).read_bytes(), fixture.read_bytes())
-                text = Path(result["paths"]["html"]).read_text()
+                text = Path(result["paths"]["html"]).read_text(encoding="utf-8")
                 self.assertIn("PAPER TRACKER", text)
                 self.assertNotIn("<script", text.lower())
                 self.assertNotIn("<img", text.lower())
-                audit = json.loads(Path(result["paths"]["json"]).read_text())
+                audit = json.loads(Path(result["paths"]["json"]).read_text(encoding="utf-8"))
                 self.assertTrue(audit["meta"]["synthetic"])
                 self.assertEqual(audit["meta"]["retrieved"], 0)
                 self.assertNotIn("recipient", audit)
 
     def test_example_configs_keep_models_and_sending_disabled(self):
-        for filename in ("config.example.json", "config.profiles.example.json",
+        for filename in ("config.example.json", "config.profiles.example.json", "config.calendar.example.json",
                          "templates/profiles.example.json"):
             for profile in load_configs(str(ROOT / filename)):
                 with self.subTest(file=filename, profile=profile["profile_id"]):

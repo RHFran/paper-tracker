@@ -84,7 +84,8 @@ def crossref_paper(x, context) -> Paper:
     relations, aliases = _crossref_relations(x.get("relation"))
     kind = "预印本/posted-content；未确认同行评审" if item_type == "posted-content" else "期刊记录；同行评审状态未由元数据核实" if item_type == "journal-article" else f"{item_type or '未知发表类型'}；同行评审状态未核实"
     return Paper(title=title, source_id=doi or x.get("URL", title), source="crossref", url=x.get("URL") or ("https://doi.org/" + quote(doi, safe="/") if doi else CROSSREF), doi=doi,
-        abstract=clean(x.get("abstract")), authors=[clean(" ".join([a.get("given", ""), a.get("family", "")])) for a in x.get("author", [])],
+        abstract=clean(x.get("abstract")), authors=[clean(a.get("name") or " ".join([a.get("given") or "", a.get("family") or ""])) for a in (x.get("author") or []) if isinstance(a, dict)],
+        author_details=[{"given": clean(a.get("given")), "family": clean(a.get("family")), "literal": clean(a.get("name"))} for a in (x.get("author") or []) if isinstance(a, dict)],
         journal=clean(" ".join(x.get("container-title", []))), publication_date=publication, publication_date_label=date_label,
         index_date=x.get("indexed", {}).get("date-time", ""), kind=kind, relations=relations, source_aliases=aliases,
         provenance=[{**context, "record_url": "https://api.crossref.org/works/" + quote(doi, safe=""), "type": item_type, "date_fields": {k: x[k] for k in ("posted", "published-online", "published-print", "published", "issued", "created", "deposited", "indexed") if k in x}, "licenses": x.get("license", []), "relations": x.get("relation", {})}])
@@ -124,7 +125,8 @@ def epmc_paper(x, context) -> Paper:
     is_preprint = source == "PPR" or any("preprint" in t.lower() for t in types)
     doi = normalize_doi(x.get("doi"))
     return Paper(title=clean(x.get("title")), source_id=source + ":" + identifier, source="europepmc", url="https://europepmc.org/article/" + source + "/" + quote(identifier), doi=doi,
-        abstract=clean(x.get("abstractText")), authors=[a.get("fullName", "") for a in x.get("authorList", {}).get("author", [])],
+        abstract=clean(x.get("abstractText")), authors=[clean(a.get("fullName") or a.get("collectiveName") or " ".join([a.get("firstName") or "", a.get("lastName") or ""])) for a in ((x.get("authorList") or {}).get("author") or []) if isinstance(a, dict)],
+        author_details=[{"given": clean(a.get("firstName")), "family": clean(a.get("lastName")), "literal": clean(a.get("collectiveName"))} for a in ((x.get("authorList") or {}).get("author") or []) if isinstance(a, dict)],
         journal=x.get("journalInfo", {}).get("journal", {}).get("title", ""), publication_date=x.get("electronicPublicationDate") or x.get("firstPublicationDate", ""), publication_date_label="electronicPublicationDate" if x.get("electronicPublicationDate") else "Europe PMC firstPublicationDate（部分日期可能经来源补齐）", index_date=x.get("firstIndexDate", ""),
         kind="预印本；未经同行评审核实" if is_preprint else "文献数据库收录；同行评审状态未核实", pmcid=normalize_pmcid(x.get("pmcid", "")), open_access=x.get("isOpenAccess") == "Y",
         provenance=[{**context, "record_url": EPMC + "/search?" + urlencode({"query": f"EXT_ID:{identifier} AND SRC:{source}", "format": "json", "resultType": "core"}), "publication_types": types, "licenses": x.get("license", ""), "date_fields": {k: x[k] for k in ("firstPublicationDate", "firstIndexDate", "electronicPublicationDate", "dateOfRevision") if k in x}}])

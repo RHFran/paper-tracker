@@ -91,7 +91,7 @@ class DemoTest(unittest.TestCase):
                 repeated = demo.preview(config, language)
                 self.assertEqual(result, repeated)
                 self.assertEqual(initial, {ext: Path(path).read_bytes() for ext, path in repeated["paths"].items()})
-                self.assertEqual(set(initial), {"html", "txt", "json"})
+                self.assertEqual(set(initial), {"html", "txt", "json", "ris", "bib"})
                 self.assertIn("DEMO", initial["html"].decode())
                 self.assertIn("DEMO", initial["txt"].decode())
                 self.assertIn('lang="' + language + '"', initial["html"].decode())
@@ -111,7 +111,7 @@ class DemoTest(unittest.TestCase):
                     for items in paper["analysis"]["fields"].values():
                         for claim in items:
                             self.assertIn(claim["evidence"], paper["full_text"])
-            self.assertEqual(len(list(Path(config["output_dir"]).iterdir())), 6)
+            self.assertEqual(len(list(Path(config["output_dir"]).iterdir())), 10)
             self.assertFalse(Path(config["state_path"]).exists())
 
     def test_unsupported_or_unsafe_language_rejected_before_writes(self):

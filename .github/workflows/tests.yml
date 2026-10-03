@@ -10,19 +10,20 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install package (no runtime dependencies)
-        run: python -m pip install --no-deps .
+      - name: Install package (Windows adds IANA tzdata)
+        run: python -m pip install .
       - name: Offline unit tests
         run: python -m unittest discover -s tests -v
       - name: Compile and CLI smoke check
@@ -32,9 +33,28 @@ jobs:
           literature-digest --help
           paper-tracker --config config.example.json validate
           paper-tracker --config config.profiles.example.json validate
+          paper-tracker --config config.calendar.example.json validate
           paper-tracker --config templates/profiles.example.json validate
       - name: Offline preview smoke check
+        shell: bash
         run: |
           cp config.example.json "$RUNNER_TEMP/digest-config.json"
           paper-tracker --config "$RUNNER_TEMP/digest-config.json" preview --language en
           paper-tracker --config "$RUNNER_TEMP/digest-config.json" preview --language zh-CN
+      - name: POSIX bootstrap and repeat-run safety
+        if: runner.os == 'Linux'
+        run: |
+          bash -n scripts/setup.sh scripts/run.sh
+          bash scripts/setup.sh --demo
+          bash scripts/setup.sh --demo --skip-install
+          bash scripts/run.sh --config runtime/demo/config.json validate
+      - name: Windows bootstrap and repeat-run safety
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/setup.ps1 -Demo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/setup.ps1 -Demo -SkipInstall
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/run.ps1 --config runtime/demo/config.json validate
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

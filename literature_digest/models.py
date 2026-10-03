@@ -68,6 +68,8 @@ class Paper:
     # Relationships are descriptive, not identity aliases (except is-identical-to).
     relations: list[dict] = field(default_factory=list)
     figures: list[dict] = field(default_factory=list)
+    # Source-supplied names, aligned with authors; never guessed from full names.
+    author_details: list[dict] = field(default_factory=list)
 
     @property
     def key(self) -> str:

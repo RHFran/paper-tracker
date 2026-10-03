@@ -7,10 +7,12 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .analysis import analyze, compose_overview
+from .analysis import (ANALYSIS_POLICY, ModelAnalysisError, analyze, compose_overview,
+                       require_analysis_payload, require_llm)
 from .http import HttpClient, RetrievalError
 from .mail import send_smtp
 from .models import TRACKS
+from .references import EXPORT_VERSION, reference_files, reference_manifest, validate_reference_files
 from .relevance import merge_papers
 from .render import render
 from .sources import enrich_full_text, fetch_crossref, fetch_europepmc, fetch_arxiv, attach_figures
@@ -67,12 +69,15 @@ def digest_id(config, local_day):
 
 def config_fingerprint(config):
     ignored = {"state_path", "output_dir", "mail", "contact_email", "http_timeout_seconds", "http_retries", "schedule"}
-    return hashlib.sha256(json.dumps({k: v for k, v in config.items() if k not in ignored}, sort_keys=True).encode()).hexdigest()
+    return hashlib.sha256(json.dumps({"reference_export_version": EXPORT_VERSION, "config": {k: v for k, v in config.items() if k not in ignored}}, sort_keys=True).encode()).hexdigest()
 
 
 def verify_payload_config(payload, config):
+    require_llm(config)
+    require_analysis_payload(payload)
     if payload.get("recipient", "").lower() != config["recipient"].lower():
         raise ValueError("Prepared digest recipient does not match this profile")
+    validate_reference_files(payload.get("reference_files", []))
     if payload.get("config_fingerprint") != config_fingerprint(config):
         raise ValueError("Prepared digest settings changed or belong to a legacy version. Restore the original settings or generate a new digest on the next local day; no stale draft was sent.")
 
@@ -85,7 +90,7 @@ def atomic_write(path, content):
     tmp.replace(path)
 
 
-def write_outputs(config, id_, text, html, audit, suffix=""):
+def write_outputs(config, id_, text, html, audit, suffix="", references=None):
     output = Path(config["output_dir"])
     output.mkdir(parents=True, exist_ok=True)
     stem = output / (audit["meta"]["local_date"] + "_" + id_ + suffix)
@@ -94,10 +99,19 @@ def write_outputs(config, id_, text, html, audit, suffix=""):
         path = str(stem) + "." + ext
         atomic_write(path, body)
         paths[ext] = path
+    if not references:
+        for extension in ("ris", "bib"):
+            Path(str(stem) + "." + extension).unlink(missing_ok=True)
+    for item in references or []:
+        path = str(output / item["filename"])
+        atomic_write(path, item["content"])
+        paths[item["format"]] = path
     return paths
 
 
 def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=send_smtp):
+    # Reject incomplete setup before retrieval, model charges, report or state writes.
+    require_llm(config)
     now = now or datetime.now(ZoneInfo(config["timezone"]))
     local_now = now.astimezone(ZoneInfo(config["timezone"]))
     local_day = local_now.date()
@@ -172,23 +186,46 @@ def run(config, send=False, now=None, http=None, fetchers=None, mail_adapter=sen
             for p in candidates:
                 # A cross-track paper appears in both sections, but is sent once.
                 if all(counts[t] < config["max_papers_per_track"] for t in p.tracks):
+                    if config["fetch_full_text"] or config.get("images", {}).get("mode", "off") != "off":
+                        enrich_full_text(p, http, config)
+                    if len(p.evidence.strip()) < 12:
+                        excluded.append({"key": p.key, "title": p.title,
+                                         "reason": "Insufficient source evidence for required LLM analysis"})
+                        continue  # Metadata-only leads must not consume analysis slots.
                     selected.append(p)
                     for t in p.tracks:
                         counts[t] += 1
                 else:
                     meta["deferred"] += 1
+            analyzed = []
+            def model_failed(reason):
+                state.pause_model_failure(local_day.isoformat(), config_fingerprint(config), reason)
+                raise ModelAnalysisError(reason + " Automatic scheduled retries are paused for this local day. After correction, use run for an intentional retry.")
+
             for p in selected:
-                if config["fetch_full_text"] or config.get("images", {}).get("mode", "off") != "off":
-                    enrich_full_text(p, http, config)
                 attach_figures(p, config)
                 p.analysis = analyze(p, config, http)
+                if p.analysis.get("mode") != "llm_grounded" or not any(p.analysis.get("fields", {}).values()):
+                    model_failed("Required paper analysis failed or produced no verified claims. No digest was delivered; check model access and source evidence.")
+                analyzed.append(p)
+            selected = analyzed
             overview = compose_overview(selected, config, http)
+            if selected and overview.get("mode") != "llm_grounded":
+                model_failed("Required overview synthesis failed validation. No digest was delivered; check model access.")
+            state.clear_model_failure()
+            meta["analysis_policy"] = ANALYSIS_POLICY
+            meta["insufficient_evidence"] = sum(item["reason"] == "Insufficient source evidence for required LLM analysis" for item in excluded)
+            suffix = "" if send else "_preview"
+            references = reference_files(selected, local_day.isoformat() + "_" + id_ + suffix)
+            meta["reference_exports"] = reference_manifest(references)
             text, html = render(selected, meta, config, overview)
             audit = {"meta": meta, "overview": overview, "papers": [p.export() for p in selected], "excluded": excluded}
-            paths = write_outputs(config, id_, text, html, audit, "" if send else "_preview")
+            paths = write_outputs(config, id_, text, html, audit, suffix, references)
             if not send:
                 return {"status": "dry_run", "digest_id": id_, "paper_count": len(selected), "paths": paths}
-            payload = {"recipient": config["recipient"], "profile_id": config.get("profile_id", "default"), "config_fingerprint": config_fingerprint(config), "subject": f"{'科研文献精选' if config.get('language', 'zh').startswith('zh') else 'Literature digest'} | {local_day.isoformat()} | {len(selected)}", "text": text, "html": html, "aliases": sorted({a for p in selected for a in p.aliases}), "harvest_until": local_day.isoformat(), "paths": paths}
+            # Local reports use sibling downloads; mail uses real MIME attachments.
+            text, html = render(selected, {**meta, "reference_delivery": "attachments"}, config, overview)
+            payload = {"analysis_policy": ANALYSIS_POLICY, "reference_files": references, "recipient": config["recipient"], "profile_id": config.get("profile_id", "default"), "config_fingerprint": config_fingerprint(config), "subject": f"{'科研文献精选' if config.get('language', 'zh').startswith('zh') else 'Literature digest'} | {local_day.isoformat()} | {len(selected)}", "text": text, "html": html, "aliases": sorted({a for p in selected for a in p.aliases}), "harvest_until": local_day.isoformat(), "paths": paths}
             prepared = state.prepare(id_, payload)
             mail_adapter(prepared["payload"], config, state, id_)
             return {"status": "sent", "digest_id": id_, "paper_count": len(selected), "paths": paths}

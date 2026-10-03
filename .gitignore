@@ -6,6 +6,7 @@ config.json
 config.*.json
 !config.example.json
 !config.profiles.example.json
+!config.calendar.example.json
 *.local.json
 *.pem
 *.key

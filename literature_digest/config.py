@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+from datetime import date
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -13,7 +14,7 @@ DEFAULTS = {
     "timezone": "Asia/Shanghai",
     "language": "zh-CN",
     "topics": None,  # Retains the v1 two-topic behavior for existing configurations.
-    "schedule": {"time": "08:30", "weekdays": [0, 1, 2, 3, 4, 5, 6], "catch_up": True},
+    "schedule": {"time": "08:30", "weekdays": [0, 1, 2, 3, 4, 5, 6], "dates": None, "catch_up": True},
     "publication_window_days": 7,
     "state_path": "state/digest.sqlite3",
     "output_dir": "output",
@@ -31,7 +32,7 @@ DEFAULTS = {
     "llm": {"enabled": False, "base_url_env": "LITERATURE_LLM_BASE_URL", "api_key_env": "LITERATURE_LLM_API_KEY", "model_env": "LITERATURE_LLM_MODEL", "max_evidence_chars": 60000},
     "mail": {"enabled": False, "host_env": "LITERATURE_SMTP_HOST", "port": 465, "security": "ssl", "user_env": "LITERATURE_SMTP_USER", "password_env": "LITERATURE_SMTP_PASSWORD", "from_env": "LITERATURE_MAIL_FROM"},
 }
-PROFILE_FIELDS = {"id", "recipient", "timezone", "language", "topics", "schedule", "images", "publication_window_days", "include_preprints", "max_papers_per_track"}
+PROFILE_FIELDS = {"llm", "id", "recipient", "timezone", "language", "topics", "schedule", "images", "publication_window_days", "include_preprints", "max_papers_per_track"}
 ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
@@ -57,6 +58,15 @@ def _merge(base, supplied):
         if key in ("llm", "mail", "schedule", "images"):
             if not isinstance(value, dict) or set(value) - set(DEFAULTS[key]):
                 raise ValueError(f"Invalid or unknown {key} settings")
+            if key == "schedule":
+                # A profile can change calendar mode without accidentally retaining
+                # its parent's selector. Explicitly supplying both is ambiguous.
+                if value.get("dates") is not None and value.get("weekdays") is not None:
+                    raise ValueError("Use either schedule.dates or schedule.weekdays, not both")
+                if value.get("dates") is not None:
+                    result[key]["weekdays"] = None
+                elif value.get("weekdays") is not None:
+                    result[key]["dates"] = None
             result[key].update(value)
         else:
             result[key] = copy.deepcopy(value)
@@ -114,7 +124,21 @@ def validate_config(c):
     s = c["schedule"]
     if not isinstance(s["time"], str) or not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", s["time"]):
         raise ValueError("schedule.time must be HH:MM in the profile timezone")
-    if not isinstance(s["weekdays"], list) or not s["weekdays"] or any(type(d) is not int or not 0 <= d <= 6 for d in s["weekdays"]) or len(set(s["weekdays"])) != len(s["weekdays"]):
+    dates, weekdays = s.get("dates"), s.get("weekdays")
+    if dates is not None:
+        if weekdays is not None:
+            raise ValueError("Use either schedule.dates or schedule.weekdays, not both")
+        if not isinstance(dates, list) or not 1 <= len(dates) <= 1000:
+            raise ValueError("schedule.dates must contain 1–1000 unique dates in YYYY-MM-DD format")
+        for day in dates:
+            try:
+                if not isinstance(day, str) or date.fromisoformat(day).isoformat() != day:
+                    raise ValueError
+            except (ValueError, TypeError):
+                raise ValueError("schedule.dates must contain valid dates in YYYY-MM-DD format") from None
+        if len(set(dates)) != len(dates):
+            raise ValueError("schedule.dates must not contain duplicate dates")
+    elif not isinstance(weekdays, list) or not weekdays or any(type(d) is not int or not 0 <= d <= 6 for d in weekdays) or len(set(weekdays)) != len(weekdays):
         raise ValueError("schedule.weekdays must be unique integers 0=Monday through 6=Sunday")
     if type(s["catch_up"]) is not bool:
         raise ValueError("schedule.catch_up must be true or false")

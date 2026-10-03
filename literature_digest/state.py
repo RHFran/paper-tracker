@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+
+from .locking import exclusive_file_lock
 
 
 def state_scope(config):
@@ -47,25 +48,27 @@ class State:
     def close(self):
         self.db.close()
 
-    @contextmanager
     def lock(self):
-        try:
-            import fcntl
-        except ImportError:
-            raise RuntimeError("Concurrency protection requires Linux/macOS or Windows WSL") from None
-        with open(str(self.path) + ".lock", "a") as handle:
-            try:
-                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                raise RuntimeError("Another digest process is using this state database") from None
-            try:
-                yield
-            finally:
-                fcntl.flock(handle, fcntl.LOCK_UN)
+        return exclusive_file_lock(str(self.path) + ".lock")
 
     def checkpoint(self):
         row = self.db.execute("SELECT value FROM metadata_v2 WHERE scope=? AND key='checkpoint'", (self.scope,)).fetchone()
         return row[0] if row else None
+
+    def model_failure_pause(self):
+        row = self.db.execute("SELECT value FROM metadata_v2 WHERE scope=? AND key='model_failure_pause'", (self.scope,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def pause_model_failure(self, local_day, fingerprint, reason):
+        value = json.dumps({"local_date": local_day, "config_fingerprint": fingerprint,
+                            "reason": reason, "retry": "Fix the model, then use an explicit run to retry; automatic work resumes on the next local day or after model/content configuration changes."})
+        self.db.execute("INSERT INTO metadata_v2 VALUES(?,?,?) ON CONFLICT(scope,key) DO UPDATE SET value=excluded.value",
+                        (self.scope, "model_failure_pause", value))
+        self.db.commit()
+
+    def clear_model_failure(self):
+        self.db.execute("DELETE FROM metadata_v2 WHERE scope=? AND key='model_failure_pause'", (self.scope,))
+        self.db.commit()
 
     def was_sent(self, paper):
         return any(self.db.execute("SELECT 1 FROM sent_papers_v2 WHERE scope=? AND alias=?", (self.scope, a)).fetchone() for a in paper.aliases)

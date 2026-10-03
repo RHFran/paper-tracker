@@ -16,6 +16,7 @@ from literature_digest.pipeline import run, digest_id, verified_online_date
 from literature_digest.schedule import is_due, next_run
 from literature_digest.state import State, state_scope
 from literature_digest.models import Paper
+from model_fixture import install_model_double
 
 
 def specimen():
@@ -101,6 +102,7 @@ class AudienceIsolation(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.c=copy.deepcopy(DEFAULTS);self.c.update(state_path=str(Path(self.temp.name)/'state.db'),output_dir=str(Path(self.temp.name)/'out'),timezone='UTC',sources=['crossref'],topics=[{'id':'batteries','name':'Batteries','queries':['battery'],'include_any':['battery']}])
         self.now=datetime(2026,10,3,9,tzinfo=timezone.utc)
+        install_model_double(self, self.c)
         self.fetch={'crossref':lambda *a:([specimen()],{'complete':True})}
     def test_recipient_dedup_isolated_same_db(self):
         sender=lambda payload,config,state,id_:state.mark_sent(id_)

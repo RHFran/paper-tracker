@@ -1,67 +1,78 @@
-# Paper Tracker v2.0.0 validation record
+# Paper Tracker v2.1.0 validation record
 
-Validated on 2026-10-03 in a Linux cloud workspace. This document records local
-checks before GitHub publication, including the Paper Tracker naming update.
-No service was installed and no real messages were sent during validation.
+Validated on 2026-10-03 in a Linux cloud workspace with Python 3.12.14. This
+record covers local verification of the integrated source before publication.
+No real provider request, model charge, SMTP message or installed background
+scheduler was part of these checks.
 
-## Passed
+## Passed locally
 
-- **131 offline unit/integration tests** (`python3 -m unittest discover -s tests -v`)
-- A separate **24-assertion independent review harness**, covering profile/recipient
-  isolation, prepared-outbox replay, uncertainty, DST, wizard safety and due-time gating
-- `compileall` for source and tests, plus Python 3.11 grammar parsing; the initial v2 checks used
-  Python 3.13, and the publication recheck used Python 3.12.14. CI is configured for
-  Python 3.11, 3.12 and 3.13; remote runs are outside this local record
-- Single- and multi-profile example validation, interactive/noninteractive setup,
-  refusal to overwrite existing configuration, and network-free offline demos
-- Chinese and English previews with exactly four paper blocks, validated global
-  numbered references, escaped untrusted text, and matching HTML/TXT/JSON output
-- Package wheel build with no runtime dependencies; MIT license; installation in
-  a separate virtual environment and invocation from outside the source checkout
-- Preferred `paper-tracker` and legacy `literature-digest` commands: help, all three
-  example configurations, noninteractive setup and identical bilingual demos
-- Checked-in demo byte-for-byte regeneration and publication-contract regression
-  tests; synthetic status, no network/mail/state writes, self-contained HTML
-- 54 relative Markdown links, JSON/TOML/YAML examples and shell syntax
-- Release scan: examples/defaults contain reserved addresses, no previous private
-  recipient, credentials, real state database or personal configuration
+- **213 offline unit/integration tests** with `python3 -m unittest discover -s tests -v`.
+  Fixtures mock retrieval, model responses and SMTP, use temporary state, and
+  explicitly refuse unintended network calls.
+- Compilation of application, scripts and tests; Python 3.11 grammar parsing;
+  Bash syntax checks for setup, launch and cron-wrapper scripts.
+- Daily/weekly compatibility, profile-specific topic schedules, finite explicit
+  dates, selector inheritance/exclusivity, far-future and exhausted calendars,
+  same-day catch-up, timezone boundaries, DST gaps/folds, and a skipped local day.
+- Separate topic profiles sharing one mailbox, persistent audience isolation,
+  repeat-tick and fold idempotency, and preservation of previous delivery history.
+- Mandatory model preflight before live retrieval/state writes; missing and
+  invalid credentials/endpoints; malformed/empty/fabricated model output;
+  overview failure; legacy prepared-draft rejection at pipeline, CLI and SMTP
+  boundaries; metadata-only exclusion without consuming the analysis limit.
+- Persistent automatic-retry pause after model failure: worker restarts and
+  repeated ticks make no new paid requests that local day. Explicit retry,
+  model/content configuration changes, next-local-day recovery and independent
+  profiles are tested with simulated clocks. Sent-paper deduplication remains.
+- Model setup with hidden-key input, provider/model selection, per-profile key
+  slots, explicit save/cancel, private-file permissions on POSIX, no-overwrite
+  safeguards, literal environment parsing and cleanup, and no credential echo.
+- Cross-process locking on Linux and mocked Windows byte-lock behavior; native
+  Windows execution is delegated to CI and is not claimed by this local record.
+- RIS/BibTeX fields, author names, identifiers, Unicode/escaping, selected-paper
+  deduplication, immutable attachment snapshots, real MIME attachment structure,
+  and cleanup of stale local citation files for an empty rerun. Independent
+  `rispy` and `bibtexparser` checks also parsed the synthetic export fixtures.
+- Reproducible bilingual HTML/TXT/JSON/RIS/BibTeX demos and static website assets;
+  public copies match the audited synthetic fixtures. The website neither
+  collects credentials nor calls a backend, model or literature provider.
+- Homepage Chinese section matches the standalone Chinese README. Detailed
+  guides retain configuration/upgrade/operations information behind concise
+  setup and result examples.
 
-### Covered behaviors
+## Independent review
 
-Configurable topics and source-specific literal queries; Crossref/Europe PMC/arXiv
-pagination and failures; publication-date precision, conflicts, future dates and
-preprint submission dates; DOI/PMCID/arXiv identity deduplication; preprint-to-journal
-relations preserved without false identity merges; exact source anchors and invalid
-reference rejection; multilingual output; full-text fallback; figure-scoped reuse
-rights and unsafe URL blocking; HTML injection; HTTP retry/redirect protection;
-recipient and profile ledger isolation; dry-run side effects; uncertain SMTP result
-handling, stable outbox replay, configuration mismatch refusal, file locks and
-same-local-day idempotency; timezones, weekdays and DST gaps/folds.
+Separate offline review harnesses exercised 15 scheduling cases and 10 required-
+model integration cases. The reviewer also checked late-stage model-failure cost
+protection, setup behavior and installed-package CLI operation. The permanent
+suite includes those core regression contracts; independent harnesses use only
+synthetic data and are not part of the published runtime.
 
-### Upgrade checks
+## Upgrade and privacy
 
-The original v1 configuration shape remains accepted. Legacy database fixtures
-are copied into audience-scoped v2 tables without deleting original tables. Sent
-aliases/checkpoints and uncertain delivery states are preserved. A previously sent
-v1 issue prevents a second send on that local day. Legacy prepared drafts do not
-bypass the new content-fingerprint guard. An independent reviewer also exercised these migration paths using the untouched
-v1 implementation to create the legacy fixtures. No real user's installed database was
-modified; these checks used synthetic temporary databases.
+Old daily/weekly configuration remains accepted. Synthetic v1 ledger fixtures
+retain sent aliases/checkpoints and uncertain outcomes without deleting legacy
+tables. An already-sent issue prevents a second delivery on the same local day.
+Old prepared snapshots cannot bypass the new model-quality/export checks.
+No actual user's installed database was migrated during validation.
 
-## Not covered by local validation
+The publication payload is an explicit source/docs/tests/examples allowlist.
+Private `.env`, user configuration, `.venv`, build output, generated subscriber
+reports, databases, logs and runtime directories are excluded. Demo addresses
+use reserved domains and all included research examples are labeled synthetic.
 
-- Real literature-provider end-to-end retrieval in the eventual deployment network
-- Live model responses or scientific semantic correctness beyond evidence anchors
-- Real SMTP delivery, inbox arrival, image loading in email clients or bounce handling
-- Running an unattended scheduler over real elapsed days
-- Docker build/run (Docker was unavailable)
-- Remote GitHub CI, deployment, repository publication or distribution to recipients;
-  check the actual repository and commit separately
-- Browser visual rendering: Chromium failed to create a required local socket even
-  with approved escalation; cloud-browser file URLs were prohibited. HTML was tested
-  structurally, but no visual screenshot or email-client compatibility pass is claimed
+## Not established by local checks
 
-The included preview files are entirely synthetic, hand-authored fixtures. Their
-papers, authors, dates, data and results are not actual research. They make no API,
-model, SMTP or state-database calls. Real operation requires the operator's own
-network-enabled host, private provider settings and successful local smoke tests.
+- Real literature-provider retrieval in the eventual deployment network
+- Provider authentication, account balance, live model compatibility or scientific
+  correctness beyond schema/evidence-anchor checks
+- Real SMTP delivery, inbox arrival, bounce handling or email-client image support
+- Native Zotero/EndNote UI import (portable files and independent parsers tested)
+- Native Windows execution, Docker build/run or unattended real-time scheduling
+- GitHub CI result, Pages publication or other deployment for the final commit;
+  those must be verified separately after publishing that exact source
+
+Do not interpret passing local tests or a valid configuration as a running
+service. Production requires a durable host, correctly configured model and
+optional SMTP service, retained state, and an explicitly started scheduler.

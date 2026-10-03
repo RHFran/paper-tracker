@@ -4,7 +4,8 @@ Thanks for helping make research digests more useful and trustworthy.
 
 ## Local development
 
-Use Python 3.11+ on Linux, macOS, or WSL. Runtime code uses the standard library.
+Use Python 3.11+ on Windows, Linux, macOS, or WSL. Runtime code uses the standard
+library; Windows also installs IANA timezone data from `tzdata`.
 
 ```sh
 python3 -m venv .venv
@@ -18,6 +19,11 @@ Work in a branch and keep changes focused. Include a regression test with a fix,
 and update both quickstarts when changing user-visible behavior. Tests should be
 offline by default: use synthetic metadata, mocked HTTP, mocked model responses,
 and fake SMTP. Do not send email or incur provider charges in CI.
+
+Live pipeline tests must configure a synthetic model and provide validated model
+responses. `tests/model_fixture.py` supplies explicit doubles for tests focused on
+other contracts; fail-closed model tests exercise the real analysis layer with
+mocked provider HTTP. `preview` remains fully offline and model-free.
 
 ## Useful contributions
 

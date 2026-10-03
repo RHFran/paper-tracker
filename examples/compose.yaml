@@ -4,7 +4,7 @@ services:
     build: ..
     command: ["--config", "/data/config.json", "schedule"]
     env_file:
-      - ../.env
+      - ../runtime/docker.env
     volumes:
       - ../runtime:/data
     restart: unless-stopped

@@ -12,8 +12,9 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .config import DEFAULTS, load_configs, validate_config
+from .analysis import require_llm
 from .mail import send_smtp
-from .pipeline import run, verify_payload_config
+from .pipeline import config_fingerprint, run, verify_payload_config
 from .schedule import is_due, next_run
 from .state import State, state_scope
 
@@ -54,7 +55,15 @@ def initialize(args, input_fn=input):
         path.chmod(0o600)
     except OSError:
         pass
-    return {"status": "configured", "path": str(path.resolve()), "next": "preview (offline demo), then run (live dry-run). An operator must configure and enable LLM/SMTP before automatic delivery.", "schedule_installed": False}
+    return {"status": "configured", "path": str(path.resolve()), "next": "preview (offline demo), then configure and enable the required LLM before run (live dry-run). Configure SMTP separately before explicit delivery.", "schedule_installed": False}
+
+
+def model_readiness(config):
+    try:
+        require_llm(config)
+    except ValueError as exc:
+        return {"llm_required": True, "live_ready": False, "live_blocker": str(exc)}
+    return {"llm_required": True, "live_ready": True, "live_blocker": None}
 
 
 def _select(configs, profile):
@@ -65,9 +74,26 @@ def _select(configs, profile):
     return configs
 
 
+def _model_pause(config, state, local_day):
+    pause = state.model_failure_pause()
+    if pause and pause["local_date"] == local_day.isoformat() and pause["config_fingerprint"] == config_fingerprint(config):
+        return {key: value for key, value in pause.items() if key != "config_fingerprint"}
+    return None
+
+
 def _run_one(config, command, send=False, now=None):
+    now = now or datetime.now(timezone.utc)
     if command == "tick" and not is_due(config, now):
         return {"profile_id": config["profile_id"], "status": "not_due", "next_run": next_run(config, now)}
+    if command == "tick":
+        require_llm(config)
+        state = State(config["state_path"], scope=state_scope(config))
+        try:
+            pause = _model_pause(config, state, now.astimezone(ZoneInfo(config["timezone"])).date())
+        finally:
+            state.close()
+        if pause:
+            return {"profile_id": config["profile_id"], "status": "model_paused", "pause": pause}
     return {"profile_id": config["profile_id"], **run(config, send=send, now=now)}
 
 
@@ -85,13 +111,14 @@ def _many(configs, command, send=False, now=None):
 def _report(result):
     print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)
     items = result if isinstance(result, list) else [result]
-    return 1 if any(r.get("status") == "error" for r in items) else 2 if any(r.get("status") == "retrieval_failed" for r in items) else 0
+    return 1 if any(r.get("status") == "error" for r in items) else 2 if any(r.get("status") == "retrieval_failed" for r in items) else 3 if any(r.get("status") == "model_paused" for r in items) else 0
 
 
-def main(argv=None):
+def _main(argv=None):
     parser = argparse.ArgumentParser(description="Paper Tracker: research directions → evidence-aware literature email. Dry-run by default.")
     parser.add_argument("--config", default="config.json", help="Operator and reader JSON configuration")
     parser.add_argument("--profile", help="Select one profile; run/tick otherwise process all profiles")
+    parser.add_argument("--env-file", help="Explicit private literal KEY=value file; no shell expansion")
     sub = parser.add_subparsers(dest="command", required=True)
     initializer = sub.add_parser("init", help="Interactive reader setup; never installs schedules or sends mail")
     initializer.add_argument("--recipient")
@@ -100,6 +127,9 @@ def main(argv=None):
     initializer.add_argument("--timezone")
     initializer.add_argument("--time", dest="at")
     initializer.add_argument("--yes", action="store_true", help="Noninteractive; requires recipient/topic, defaults language/timezone/time")
+    model_setup = sub.add_parser("configure-model", help="Choose provider/model and enter a hidden API key; save only after local confirmation; no network")
+    model_setup.add_argument("--secrets-file", help="Private .env or .env.<name>; default .env next to config")
+    model_setup.add_argument("--replace", action="store_true", help="Explicitly allow replacing this subscription model and slot; still asks before saving")
     sub.add_parser("validate", help="Validate profiles, print readiness and next scheduled times without network")
     preview = sub.add_parser("preview", help="Generate a clearly labeled synthetic offline demo; no network/state/mail")
     preview.add_argument("--language", help="Override demo language")
@@ -116,15 +146,20 @@ def main(argv=None):
     try:
         if args.command == "init":
             return _report(initialize(args))
+        if args.command == "configure-model":
+            from .configure_model import configure_model
+            return _report(configure_model(args))
         configs = _select(load_configs(args.config), args.profile)
         if args.command == "validate":
-            return _report([{"status": "valid", "profile_id": c["profile_id"], "recipient": c["recipient"], "language": c["language"], "timezone": c["timezone"], "next_run": next_run(c), "mail_enabled": c["mail"]["enabled"], "llm_enabled": c["llm"]["enabled"], "missing_environment_variables": [v for section in ("mail", "llm") if c[section]["enabled"] for k, v in c[section].items() if k.endswith("_env") and not os.environ.get(v)], "schedule_installed": False} for c in configs])
+            return _report([{"status": "valid", "profile_id": c["profile_id"], "recipient": c["recipient"], "language": c["language"], "timezone": c["timezone"], "next_run": next_run(c), "mail_enabled": c["mail"]["enabled"], "llm_enabled": c["llm"]["enabled"], **model_readiness(c), "missing_environment_variables": [v for section in ("mail", "llm") if c[section]["enabled"] for k, v in c[section].items() if k.endswith("_env") and not os.environ.get(v)], "schedule_installed": False} for c in configs])
         if args.command == "preview":
             from .demo import preview
             return _report([preview(c, args.language) for c in configs])
         if args.command in ("run", "tick"):
             return _report(_many(configs, args.command, args.send))
         if args.command == "schedule":
+            for config in configs:
+                require_llm(config)
             previews = set()
             while True:
                 # Re-read non-secret reader settings without restarting the service.
@@ -143,7 +178,7 @@ def main(argv=None):
                         try:
                             from .pipeline import digest_id
                             delivery = state.get(digest_id(c, key[1]))
-                            if state.unresolved() or state.sent_on(key[1].isoformat()) or delivery and delivery["status"] == "sent":
+                            if state.unresolved() or state.sent_on(key[1].isoformat()) or delivery and delivery["status"] == "sent" or _model_pause(c, state, key[1]):
                                 continue
                         finally:
                             state.close()
@@ -158,11 +193,13 @@ def main(argv=None):
             raise ValueError("Select exactly one profile with --profile for send/resolve")
         results = []
         for config in configs:
+            if args.command == "send":
+                require_llm(config)
             state = State(config["state_path"], scope=state_scope(config))
             try:
                 with state.lock():
                     if args.command == "status":
-                        result = {"profile_id": config["profile_id"], "checkpoint": state.checkpoint(), "unresolved": state.unresolved(), "deliveries": state.recent()}
+                        result = {"profile_id": config["profile_id"], "checkpoint": state.checkpoint(), "unresolved": state.unresolved(), "model_failure_pause": state.model_failure_pause(), "deliveries": state.recent()}
                     elif args.command == "resolve":
                         state.resolve(args.digest_id, args.decision)
                         result = {"digest_id": args.digest_id, "status": state.get(args.digest_id)["status"]}
@@ -182,6 +219,37 @@ def main(argv=None):
     except Exception as exc:
         print(f"Error: {exc if isinstance(exc, (ValueError, RuntimeError, OSError)) else type(exc).__name__}", file=sys.stderr)
         return 1
+
+
+def main(argv=None):
+    """Load an explicitly named private environment for this call only."""
+    if os.name == "nt":
+        for stream in (sys.stdout, sys.stderr):
+            if callable(getattr(stream, "reconfigure", None)):
+                stream.reconfigure(encoding="utf-8")
+    argv = list(sys.argv[1:] if argv is None else argv)
+    options = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+    options.add_argument("--env-file")
+    options.add_argument("--config", default="config.json")
+    parsed, _ = options.parse_known_args(argv)
+    if not parsed.env_file or any(arg in ("--help", "-h") for arg in argv):
+        return _main(argv)
+    added = []
+    try:
+        from .environment import read_environment_file
+        configs = load_configs(parsed.config)
+        allowed = {value for config in configs for section in ("llm", "mail") for key, value in config[section].items() if key.endswith("_env")}
+        for name, value in read_environment_file(parsed.env_file, allowed).items():
+            if value and not os.environ.get(name):
+                os.environ[name] = value
+                added.append(name)
+        return _main(argv)
+    except (ValueError, OSError) as exc:
+        print(f"Error: {str(exc) if isinstance(exc, ValueError) else 'Unable to read private configuration or environment file'}", file=sys.stderr)
+        return 1
+    finally:
+        for name in added:
+            os.environ.pop(name, None)
 
 
 if __name__ == "__main__":

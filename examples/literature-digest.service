@@ -8,8 +8,7 @@ After=network-online.target
 Type=oneshot
 User=YOUR_USER
 WorkingDirectory=/absolute/path/paper-tracker
-EnvironmentFile=/absolute/private/path/literature-digest.env
-ExecStart=/absolute/path/paper-tracker/.venv/bin/python -m literature_digest --config /absolute/private/path/config.json tick --send
+ExecStart=/absolute/path/paper-tracker/.venv/bin/python scripts/launch.py --env-file /absolute/private/path/.env --config /absolute/private/path/config.json tick --send
 # State/output paths in config must be durable and writable by YOUR_USER.
 UMask=0077
 NoNewPrivileges=true

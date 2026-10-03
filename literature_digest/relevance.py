@@ -101,7 +101,11 @@ def merge_papers(papers: list[Paper], topics: list[dict] | None = None) -> list[
                 target.doi = other.doi
             if len(other.abstract) > len(target.abstract):
                 target.abstract = other.abstract
-            for name in ("pmcid", "arxiv_id", "journal", "authors"):
+            if not target.authors:
+                target.authors, target.author_details = other.authors, other.author_details
+            elif target.authors == other.authors and not target.author_details:
+                target.author_details = other.author_details
+            for name in ("pmcid", "arxiv_id", "journal"):
                 if not getattr(target, name):
                     setattr(target, name, getattr(other, name))
             if len(other.full_text) > len(target.full_text):

@@ -212,6 +212,41 @@ def _reference_text(number, paper):
     return f"{number}. {citation}" + (" " + link if link else "")
 
 
+
+def _reference_downloads(meta, language):
+    """Only safe sibling filenames in local HTML; mail has no file: links."""
+    exports = meta.get("reference_exports", [])
+    files = []
+    for item in exports if isinstance(exports, list) else []:
+        if not isinstance(item, dict):
+            continue
+        filename, extension = item.get("filename", ""), item.get("format")
+        if extension in {"ris", "bib"} and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*\." + extension, filename):
+            files.append((filename, "RIS" if extension == "ris" else "BibTeX"))
+    if not files:
+        return [], ""
+    zh = is_chinese(language)
+    title = "导入文献管理器" if zh else "Import into your reference manager"
+    instructions = ("RIS 适用于 Zotero / EndNote；BibTeX 适用于 Zotero。下载后在软件中选择文件导入；是否可双击打开取决于本机文件关联。" if zh else
+                    "Use RIS for Zotero / EndNote, or BibTeX for Zotero. Download, then use File → Import in your app. Opening the file directly depends on your local file associations.")
+    if meta.get("reference_delivery") == "attachments":
+        action = "本邮件已附上 " if zh else "Attached to this email: "
+        action += ", ".join(filename for filename, _ in files)
+        actions = escape(action)
+        lines = [title, instructions, action]
+    else:
+        actions = " &nbsp; · &nbsp; ".join('<a download href="' + escape(filename, quote=True) + '" style="color:#315d40">' + label + ' ↓</a>' for filename, label in files)
+        lines = [title, instructions] + [label + ": " + filename for filename, label in files]
+    if meta.get("demo"):
+        warning = "仅含虚构演示记录，请勿作为真实文献导入。" if zh else "Contains invented demo records only; do not import as real research."
+        lines.append(warning)
+        instructions += " " + warning
+    html = ('<tr><td style="padding:20px 36px;background:#eef5e7;border-top:1px solid #dfe6dc">'
+            '<h2 style="margin:0 0 10px;font-size:17px;color:#173f35">' + escape(title) + '</h2>'
+            '<p style="margin:0 0 12px;font-size:12px;line-height:1.7;color:#526153">' + escape(instructions) + '</p>'
+            '<p style="margin:0;font-size:12px;overflow-wrap:anywhere">' + actions + '</p></td></tr>')
+    return lines, html
+
 def render(papers, meta, config=None, overview=None):
     """Return plain text and email-client-friendly HTML, with one global bibliography."""
     config = config or {}
@@ -363,6 +398,10 @@ def render(papers, meta, config=None, overview=None):
             plain_citation = citation[:-len(source_url)].rstrip() if source_url and citation.endswith(source_url) else citation
             body.append('<p id="ref-' + str(number) + '" style="margin:0 0 13px;font-size:12px;line-height:1.7;color:#526153">' + escape(plain_citation) + (' ' + _link(source_url, "doi:" + paper.doi if doi_url else labels["source"]) if source_url else "") + '</p>')
         body.append('</td></tr>')
+    if papers and not meta.get("failure"):
+        reference_lines, reference_html = _reference_downloads(meta, language)
+        lines += [""] + reference_lines if reference_lines else []
+        body.append(reference_html)
     lines += ["", labels["footer"], labels["audit"]]
     body.append('<tr><td style="padding:24px 36px 30px;background:#edf1e8;font-size:10px;line-height:1.8;color:#76816f">' + escape(labels["footer"]) + '<br />' + escape(labels["audit"]) + '</td></tr>')
     html = ('<!doctype html><html lang="' + escape(language, quote=True) + '"><head><meta charset="utf-8" />'

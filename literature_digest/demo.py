@@ -15,6 +15,7 @@ from pathlib import Path
 from .analysis import is_chinese, output_language, reference_map, validate_analysis, validate_overview
 from .models import Paper
 from .render import render
+from .references import reference_files, reference_manifest
 
 
 _SOURCES = (
@@ -189,6 +190,8 @@ def preview(config, language=None):
             "sources": [], "errors": [], "failure": False}
     papers = _papers(selected)
     overview = _overview(papers, selected)
+    references = reference_files(papers, "demo." + selected)
+    meta["reference_exports"] = reference_manifest(references)
     text, html = render(papers, meta, options, overview)
     audit = {"meta": meta, "overview": overview,
              "papers": [paper.export(include_text=True) for paper in papers], "excluded": []}
@@ -200,6 +203,10 @@ def preview(config, language=None):
         path = output / ("demo." + selected + "." + extension)
         _atomic_write(path, body)
         paths[extension] = str(path)
+    for item in references:
+        path = output / item["filename"]
+        _atomic_write(path, item["content"])
+        paths[item["format"]] = str(path)
     return {"status": "demo_preview", "synthetic": True, "language": selected,
             "paper_count": len(papers), "paths": paths,
             "notice": notice, "network_used": False, "state_changed": False, "mail_sent": False}

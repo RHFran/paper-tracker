@@ -180,12 +180,16 @@ class AnalysisTest(unittest.TestCase):
         self.assertEqual(analyze(paper(), DEFAULTS, None)["mode"], "discovery_only")
 
 
+from model_fixture import install_model_double, enable_model
+
+
 class PipelineTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.c = copy.deepcopy(DEFAULTS)
         self.c.update(state_path=str(Path(self.temp.name) / "state.db"), output_dir=str(Path(self.temp.name) / "output"), sources=["crossref"])
         self.now = datetime(2026, 10, 1, 23, 0, tzinfo=timezone.utc)  # Oct 2 in Shanghai.
+        install_model_double(self, self.c)
     def tearDown(self): self.temp.cleanup()
     def fetcher(self, records):
         return {"crossref": lambda *args: (copy.deepcopy(records), {"source": "crossref", "complete": True})}
@@ -193,7 +197,7 @@ class PipelineTest(unittest.TestCase):
         records = [paper("2026-09-25", "10.9999/in"), paper("2026-09-24", "10.9999/old"), paper("2026-10-03", "10.9999/future"), paper("2026-10", "10.9999/partial")]
         result = run(self.c, now=self.now, fetchers=self.fetcher(records))
         self.assertEqual(result["paper_count"], 1)
-        audit = json.loads(Path(result["paths"]["json"]).read_text())
+        audit = json.loads(Path(result["paths"]["json"]).read_text(encoding="utf-8"))
         self.assertEqual(audit["meta"]["publication_start"], "2026-09-25")
         self.assertIn("边界日", audit["papers"][0]["warnings"][0])
         self.assertEqual(audit["meta"]["outside_window"], 2)
@@ -218,7 +222,7 @@ class PipelineTest(unittest.TestCase):
         def failed(*a): raise RetrievalError("rate limited")
         result = run(self.c, send=True, now=self.now, fetchers={"crossref": failed}, mail_adapter=lambda *a: self.fail("Must not send"))
         self.assertEqual(result["status"], "retrieval_failed")
-        self.assertIn("不能判断是否有新论文", Path(result["paths"]["txt"]).read_text())
+        self.assertIn("不能判断是否有新论文", Path(result["paths"]["txt"]).read_text(encoding="utf-8"))
         state = State(self.c["state_path"], scope=state_scope(self.c)); self.assertIsNone(state.checkpoint()); state.close()
     def test_sent_idempotent_and_durable_dedup(self):
         calls = []
@@ -231,7 +235,7 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(c["paper_count"], 0)
     def test_html_untrusted_text_escaped(self):
         result = run(self.c, now=self.now, fetchers=self.fetcher([paper(title="<script>alert(1)</script> Biogenic volatile organic compounds")]))
-        html = Path(result["paths"]["html"]).read_text()
+        html = Path(result["paths"]["html"]).read_text(encoding="utf-8")
         self.assertNotIn("<script>", html); self.assertIn("&lt;script&gt;", html)
     def test_uncertain_state_blocks_future_send(self):
         state = State(self.c["state_path"], scope=state_scope(self.c))
@@ -247,8 +251,10 @@ class MailTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.state = State(str(Path(self.temp.name) / "state.db"))
         self.payload = {"recipient": "recipient@example.test", "subject": "测试", "text": "text", "html": "<p>text</p>", "aliases": ["doi:10.9999/test"], "harvest_until": "2026-10-01"}
+        self.payload["analysis_policy"] = "required-v1"
         self.state.prepare("test-id", self.payload)
         self.c = copy.deepcopy(DEFAULTS); self.c["mail"]["enabled"] = True
+        enable_model(self, self.c)
         self.env = patch.dict(os.environ, {"LITERATURE_SMTP_HOST": "smtp.example.test", "LITERATURE_SMTP_USER": "test", "LITERATURE_SMTP_PASSWORD": "synthetic-test-only", "LITERATURE_MAIL_FROM": "sender@example.test"})
         self.env.start()
     def tearDown(self): self.env.stop(); self.state.close(); self.temp.cleanup()

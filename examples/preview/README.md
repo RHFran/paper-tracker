@@ -67,7 +67,7 @@ The fixed demo covers forest volatile emissions and remote-sensing tree-species
 mapping. Live configuration topics do not alter these fixtures. To use your own
 research topics, run `paper-tracker init`, review `validate`, then `run` for actual
 retrieval. Real summaries need an enabled model; email needs SMTP plus `--send`.
-See the [full setup guide](../../README.md#quickstart).
+See the [full setup guide](../../docs/user-guide.md#quickstart).
 
 ## 中文
 
