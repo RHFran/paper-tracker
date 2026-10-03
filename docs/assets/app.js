@@ -62,7 +62,8 @@
     const topic = byId('topic').value;
     const selected = dataset.papers.map((paper, i) => ({ paper, number: i + 1 }))
       .filter(({ paper }) => topic === 'all' || (topic === 'bvoc' ? paper.source_id === 'forest-bvoc' : paper.source_id === 'canopy-species'));
-    byId('paper-count').textContent = `${selected.length} ${t.count}`;
+    const countLabel = language === 'en' && selected.length === 1 ? 'synthetic paper' : t.count;
+    byId('paper-count').textContent = `${selected.length} ${countLabel}`;
     const list = byId('paper-list');
     list.replaceChildren();
     for (const { paper, number } of selected) {

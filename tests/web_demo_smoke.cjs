@@ -48,6 +48,7 @@ buttons[1].dispatch('click');
 assert.equal(document.documentElement.lang, 'en');
 assert.equal(nodes.get('output-language').value, 'en');
 assert.equal(nodes.get('paper-list').children.length, 1, 'filter must survive language switch');
+assert.equal(nodes.get('paper-count').textContent, '1 synthetic paper');
 assert.equal(nodes.get('email-preview-link').href, 'preview/demo.en.html');
 assert.equal(nodes.get('ris-link').href, 'preview/demo.en.ris');
 assert.equal(nodes.get('bib-link').href, 'preview/demo.en.bib');
