@@ -1,6 +1,7 @@
 """Offline citation export and MIME tests; all records and transport are synthetic."""
 import copy
 import hashlib
+import io
 import json
 import os
 import re
@@ -12,9 +13,10 @@ from unittest.mock import patch
 
 from literature_digest.analysis import ANALYSIS_POLICY
 from literature_digest.config import DEFAULTS
+from literature_digest.demo import _atomic_write as demo_atomic_write
 from literature_digest.mail import MailSetupError, send_smtp
 from literature_digest.models import Paper
-from literature_digest.pipeline import run, verify_payload_config
+from literature_digest.pipeline import atomic_write, run, verify_payload_config
 from literature_digest.references import bibtex, reference_files, ris, validate_reference_files
 from literature_digest.relevance import merge_papers
 from literature_digest.sources import crossref_paper, epmc_paper
@@ -91,6 +93,29 @@ def parse_bib(text):
 
 
 class ReferenceFormatTest(unittest.TestCase):
+    def test_atomic_writers_preserve_snapshot_bytes_with_windows_text_defaults(self):
+        real_open = io.open
+
+        def windows_text_open(file, mode="r", buffering=-1, encoding=None,
+                              errors=None, newline=None, closefd=True, opener=None):
+            # Simulate Windows text-mode defaults even when this test runs on
+            # Linux. Binary writes must bypass LF-to-CRLF translation entirely.
+            if "b" not in mode and any(flag in mode for flag in "wax") and newline is None:
+                newline = "\r\n"
+            return real_open(file, mode, buffering, encoding, errors, newline, closefd, opener)
+
+        files = reference_files([fixture()], "windows-regression")
+        with tempfile.TemporaryDirectory() as directory:
+            for writer in (atomic_write, demo_atomic_write):
+                for item in files:
+                    with self.subTest(writer=writer.__module__, format=item["format"]):
+                        target = Path(directory) / item["filename"]
+                        with patch("io.open", side_effect=windows_text_open):
+                            writer(target, item["content"])
+                        content = target.read_bytes()
+                        self.assertEqual(content, item["content"].encode("utf-8"))
+                        self.assertEqual(hashlib.sha256(content).hexdigest(), item["sha256"])
+
     def test_unicode_quotes_controls_cannot_inject_records_or_fields(self):
         p = fixture(title='树冠 "quote" } @article{evil, title={fake}} \\ 50% & # _ $ ~ ^\nTY  - BOOK\r\nER  - ',
                     authors=["Research and Development Team", "王小明\nAU  - extra"],

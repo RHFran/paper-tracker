@@ -6,6 +6,10 @@ on:
     paths:
       - 'docs/**'
       - '.github/workflows/pages.yml'
+      - 'scripts/build_demo_site.py'
+      - 'tests/test_web_demo.py'
+      - 'tests/web_demo_smoke.cjs'
+      - 'examples/preview/**'
   workflow_dispatch:
 
 permissions:

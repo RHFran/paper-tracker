@@ -85,7 +85,8 @@ def verify_payload_config(payload, config):
 def atomic_write(path, content):
     path = Path(path)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(content, encoding="utf-8")
+    # Preserve snapshot bytes and hashes on Windows as well as POSIX.
+    tmp.write_bytes(content.encode("utf-8"))
     tmp.chmod(0o600)
     tmp.replace(path)
 

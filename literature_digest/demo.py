@@ -142,10 +142,10 @@ def _atomic_write(path, content):
     """Use a unique sibling temporary file, without importing the live pipeline."""
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+        with tempfile.NamedTemporaryFile(mode="wb", dir=path.parent,
                                          prefix="." + path.name + ".", suffix=".tmp", delete=False) as handle:
             temporary = Path(handle.name)
-            handle.write(content)
+            handle.write(content.encode("utf-8"))
         os.replace(temporary, path)
     finally:
         if temporary is not None:
