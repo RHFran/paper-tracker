@@ -144,6 +144,9 @@ def _main(argv=None):
     revise.add_argument("job_id")
     revise.add_argument("--reason", required=True)
     revise.add_argument("--prepare-connector", action="store_true")
+    supersede = sub.add_parser("agent-supersede", help="Replace only a completed, never-claimed connector preparation with a new immutable agent job; never sends")
+    supersede.add_argument("job_id")
+    supersede.add_argument("--reason", required=True)
     agent_tool = sub.add_parser("agent-tool", help="Source, evidence, validation, literature and outbox tools called by the research agent")
     agent_tool.add_argument("job_id")
     agent_tool.add_argument("action", choices=["status", "search", "fetch", "ingest", "figure", "validate", "finalize", "library"])
@@ -186,10 +189,13 @@ def _main(argv=None):
             from .configure_model import configure_model
             return _report(configure_model(args))
         configs = _select(load_configs(args.config), args.profile)
-        if args.command in ("agent-export", "agent-revise", "agent-tool", "agent-recover"):
+        if args.command in ("agent-export", "agent-revise", "agent-supersede", "agent-tool", "agent-recover"):
             if len(configs) != 1:
                 raise ValueError("Select exactly one profile with --profile for agent commands")
             from .agent_jobs import create_job, tool, recover_job
+            if args.command == "agent-supersede":
+                from .agent_supersede import supersede_job
+                return _report(supersede_job(configs[0], args.job_id, args.reason))
             if args.command == "agent-revise":
                 return _report(create_job(configs[0], delivery="connector" if args.prepare_connector else "dry_run",
                                           revision_of=args.job_id, revision_reason=args.reason))

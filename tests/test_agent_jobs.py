@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout, redirect_stderr
 from datetime import datetime, timezone
+from html import escape
 from unittest.mock import patch
 
 from literature_digest.agent_jobs import (create_job, tool, recover_job, _load, _save, _validate)
@@ -121,6 +122,22 @@ class AgentJobs(unittest.TestCase):
         self.source(job);result=tool(self.config,job['job_id'],'finalize',input_path=self.submission())
         audit=json.loads(Path(result['paths']['json']).read_text(encoding='utf-8'))
         self.assertTrue(audit['meta']['partial_coverage']);self.assertEqual(audit['meta']['workflow'],'agent_led')
+        self.assertIn(self.data()['coverage_notes'], Path(result['paths']['txt']).read_text(encoding='utf-8'))
+        self.assertIn(self.data()['coverage_notes'], Path(result['paths']['html']).read_text(encoding='utf-8'))
+
+    def test_coverage_disclosure_reaches_connector_envelope_safely(self):
+        job=create_job(self.config,self.now,'connector');self.source(job)
+        data=self.data()
+        notes=('Synthetic import failure: <script>alert("x")</script>.\n'
+               'Verified primary source: https://example.org/paper?a=1&b=2')
+        data['coverage_notes']=notes
+        result=tool(self.config,job['job_id'],'finalize',input_path=self.submission(data))
+        envelope=json.loads(Path(result['paths']['envelope']).read_text(encoding='utf-8'))
+        self.assertEqual(envelope['text'].count(notes),1)
+        self.assertIn(escape(notes).replace('\n','<br />'),envelope['html'])
+        self.assertNotIn('<script>',envelope['html'])
+        self.assertEqual(result['status'],'prepared')
+        self.assertIsNone(self.state().checkpoint())
 
     def test_dry_run_promotes_without_research_and_prepared_never_replaced(self):
         job,dry=self.finish()

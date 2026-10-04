@@ -118,7 +118,7 @@ def _refresh_result(state, job):
 
 
 def _public(job):
-    return {key: job[key] for key in ("job_id", "status", "workflow", "backend", "workspace", "task_path", "contract_path", "tool_argv", "delivery", "local_date", "result") if key in job}
+    return {key: job[key] for key in ("job_id", "status", "workflow", "backend", "workspace", "task_path", "contract_path", "tool_argv", "delivery", "local_date", "result", "supersedes", "superseded_by", "supersede_reason", "superseded_reason") if key in job}
 
 
 def _task(contract):
@@ -304,6 +304,16 @@ def create_job(config, now=None, delivery="dry_run", *, revision_of=None, revisi
             existing = state.db.execute("SELECT 1 FROM agent_jobs_v1 WHERE scope=? AND id=?", (state.scope, identifier)).fetchone()
             if existing:
                 job = _load(state, config, identifier)
+                visited = {identifier}
+                while job["status"] == "superseded":
+                    successor_id = job.get("superseded_by")
+                    if not successor_id or successor_id in visited:
+                        raise ValueError("Supersession chain integrity check failed")
+                    successor = _load(state, config, successor_id)
+                    if successor.get("supersedes") != job["job_id"]:
+                        raise ValueError("Supersession successor integrity check failed")
+                    visited.add(successor_id)
+                    job = successor
                 if job["delivery"] != delivery:
                     if job["status"] != "completed" or job["delivery"] != "dry_run" or delivery not in ("connector", "smtp"):
                         raise ValueError("This day's agent job has a different delivery intent; never replace active research or a prepared/claimed envelope")
@@ -642,6 +652,8 @@ def tool(config, identifier, action, *, source=None, topic_id=None, query=None, 
 def _complete(state, config, job, data, selected, overview, notes, outlook=None):
     identifier = job["job_id"]
     existing = state.get(identifier)
+    if job["status"] == "superseded" or existing and existing["status"] == "superseded":
+        raise ValueError("A superseded agent job cannot be finalized or reactivated")
     if existing:
         payload = existing["payload"]
         if (payload.get("workflow") != "agent_led" or payload.get("config_fingerprint") != config_fingerprint(config)
@@ -665,7 +677,7 @@ def _complete(state, config, job, data, selected, overview, notes, outlook=None)
     meta = {"local_date": job["local_date"], "timezone": config["timezone"], "profile_id": config["profile_id"],
             "language": config["language"], "publication_start": job["publication_start"],
             "publication_window_days": config["publication_window_days"], "retrieval_start": job["publication_start"],
-            "retrieval_end": job["publication_end"], "window_end": job["created_at"],
+            "retrieval_end": job["publication_end"], "window_end": job.get("research_window_end", job["created_at"]),
             "analysis_policy": ANALYSIS_POLICY, "workflow": "agent_led", "agent_backend": config["agent"]["backend"],
             "requested_model": config["agent"].get("model", ""), "requested_reasoning_effort": config["agent"].get("reasoning_effort", ""), "effective_model_verified": False,
             "retrieval_mode": "agent_directed", "partial_coverage": True, "coverage_notes": notes,
@@ -676,6 +688,8 @@ def _complete(state, config, job, data, selected, overview, notes, outlook=None)
     meta["reference_exports"] = reference_manifest(references)
     if job.get("revision_of"):
         meta.update(revision_of=job["revision_of"], revision_reason=job["revision_reason"])
+    if job.get("supersedes"):
+        meta.update(supersedes=job["supersedes"], supersede_reason=job["supersede_reason"])
     audit = {"meta": meta, "overview": overview, "papers": [paper.export(include_text=True) for paper in selected],
              "decisions": data["decisions"], "agent_tool_events": job["events"], "job_contract": read_json(job["contract_path"])}
     if outlook is not None:
@@ -695,6 +709,8 @@ def _complete(state, config, job, data, selected, overview, notes, outlook=None)
                    "harvest_until": job["local_date"], "paths": paths}
         if inline_images:
             payload["inline_images"] = inline_images
+        if job.get("supersedes"):
+            payload.update(supersedes=job["supersedes"], supersede_reason=job["supersede_reason"])
         if job.get("revision_of"):
             payload.update(revision_of=job["revision_of"], revision_reason=job["revision_reason"])
             payload["subject"] += " | " + ("图文增订版" if config["language"].startswith("zh") else "Revised edition")

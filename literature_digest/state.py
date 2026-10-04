@@ -24,6 +24,7 @@ class State:
             CREATE TABLE IF NOT EXISTS deliveries_v2 (scope TEXT NOT NULL, id TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(scope,id));
             CREATE TABLE IF NOT EXISTS sent_papers_v2 (scope TEXT NOT NULL, alias TEXT NOT NULL, digest_id TEXT NOT NULL, sent_at TEXT NOT NULL, PRIMARY KEY(scope,alias));
             CREATE TABLE IF NOT EXISTS delivery_receipts_v1 (scope TEXT NOT NULL, id TEXT NOT NULL, receipt TEXT NOT NULL, PRIMARY KEY(scope,id));
+            CREATE TABLE IF NOT EXISTS delivery_claims_v1 (scope TEXT NOT NULL, id TEXT NOT NULL, claimed_at TEXT NOT NULL, PRIMARY KEY(scope,id));
             CREATE TABLE IF NOT EXISTS metadata_v2 (scope TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(scope,key));
         """)
         self._migrate_v1()
@@ -97,6 +98,22 @@ class State:
     def receipt(self, digest_id):
         row = self.db.execute("SELECT receipt FROM delivery_receipts_v1 WHERE scope=? AND id=?", (self.scope, digest_id)).fetchone()
         return json.loads(row[0]) if row else None
+
+    def send_claim(self, digest_id):
+        row = self.db.execute("SELECT claimed_at FROM delivery_claims_v1 WHERE scope=? AND id=?", (self.scope, digest_id)).fetchone()
+        return row[0] if row else None
+
+    def claim_connector(self, digest_id):
+        """Permanently record the one-shot claim, atomically with its status."""
+        now = datetime.now(timezone.utc).isoformat()
+        with self.db:
+            if self.send_claim(digest_id) or self.receipt(digest_id) is not None:
+                raise ValueError("This outbox already has a send claim or receipt; never resend")
+            changed = self.db.execute("UPDATE deliveries_v2 SET status='sending',updated_at=? WHERE scope=? AND id=? AND status='prepared'",
+                                      (now, self.scope, digest_id))
+            if changed.rowcount != 1:
+                raise ValueError("Only an unclaimed prepared connector outbox can be claimed")
+            self.db.execute("INSERT INTO delivery_claims_v1 VALUES(?,?,?)", (self.scope, digest_id, now))
 
     def record_receipt(self, digest_id, receipt):
         with self.db:

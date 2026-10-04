@@ -277,6 +277,39 @@ uncertain send. Empty results do not prove there are no relevant papers.
 
 ## Delivery, retries and durable operation
 
+### Correct a never-claimed connector preparation
+
+If a completed agent job needs a correction **before its connector envelope has
+ever been claimed**, explicitly create an immutable replacement:
+
+```sh
+bash scripts/run.sh --config config.json --profile PROFILE_ID \
+  agent-supersede JOB_ID --reason "Correct the coverage disclosure before delivery"
+```
+
+Use the exact original config, profile, recipient, state ledger and output paths.
+The original delivery must be precisely `prepared`, with no claim or receipt and
+no other open delivery for that audience. This command checks the original
+contracts, submission, bundle and registered evidence; it replays ingested source
+snapshots to verify candidate integrity. It atomically marks the original
+`superseded` and creates a new `awaiting_agent` job with a distinct deterministic
+identity. The original files, payload, hashes, receipts and sent-paper deduplication
+remain untouched. A repeated request with the same original ID and reason returns
+the same successor. A different reason cannot branch an already-superseded job.
+
+The successor retains the original publication window and local day, including
+the normal stale-day send restriction. Source snapshots and candidates are reused;
+figure registrations are deliberately not copied, so register required figures
+again. Review the successor's task, submit the corrected result, then validate and
+finalize it using its own tools. Same-day regular export returns the successor;
+the old entry cannot be finalized or claimed. No model call or email send happens
+during supersession. Sending still requires its own authorization, `begin-send`,
+exactly one external connector call and the actual provider receipt.
+
+Claimed, sending, uncertain and sent deliveries cannot use this recovery route.
+Do not reset a status or clear deduplication. `agent-revise` remains exclusively
+for an explicitly requested revised edition of an already confirmed sent digest.
+
 Each job is bound to its local calendar day and config/profile. Repeating the
 same request reuses it. After reviewing a completed dry run, use `run --send` or
 `run --prepare-connector` to promote it to delivery: the program revalidates the

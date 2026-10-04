@@ -331,8 +331,16 @@ def render(papers, meta, config=None, overview=None, outlook=None):
     config = config or {}
     language = output_language(config)
     labels = dict(LABELS["zh" if is_chinese(language) else "en"])
+    coverage_notes = meta.get("coverage_notes")
+    has_coverage_notes = isinstance(coverage_notes, str) and bool(coverage_notes.strip())
     if meta.get("partial_coverage"):
         labels["empty"] = "本次有限检索未发现符合条件的新增论文，不能据此判断完整范围内没有新论文。" if is_chinese(language) else "No matching new papers were found in this bounded retrieval; this does not establish that none exist in the full window."
+        if has_coverage_notes:
+            labels["empty_topic"] = ("本期该主题未纳入正文论文；检索覆盖与局限见上方说明。" if is_chinese(language) else
+                                     "No papers from this topic were included in this issue; see the search coverage and limitations above.")
+        else:
+            labels["empty_topic"] = ("本次有限检索中，该主题未纳入正文论文，不能据此判断没有新增论文。" if is_chinese(language) else
+                                     "No papers from this topic were included in this bounded retrieval; this does not establish that no new papers exist.")
         labels["footer"] = ("范围与方法：本次检索受配置的分页/候选上限限制，来源覆盖不完整；已收录文献日期与证据锚点按程序规则核对。" if is_chinese(language) else
                             "Scope and methods: retrieval was limited by configured page/candidate bounds and source coverage is incomplete. Included publication dates and evidence anchors were checked by the program.")
     if meta.get("demo"):
@@ -360,6 +368,16 @@ def render(papers, meta, config=None, overview=None, outlook=None):
         notice = "有限检索：结果并非该时段的完整文献清单。" if is_chinese(language) else "Bounded retrieval: this is not an exhaustive bibliography for the window."
         lines += [notice, ""]
         body.append('<tr><td style="padding:18px 36px;background:#fff0c5;color:#76531c;font-size:13px">' + escape(notice) + '</td></tr>')
+    if has_coverage_notes:
+        title = "检索覆盖与局限" if is_chinese(language) else "Search coverage and limitations"
+        lines += [title, coverage_notes, ""]
+        # Notes are plain text, never publisher HTML or Markdown. Preserve the
+        # disclosure and visible URLs without interpreting untrusted markup.
+        note_html = escape(coverage_notes).replace("\r\n", "\n").replace("\r", "\n").replace("\n", "<br />")
+        body.append('<tr><td style="padding:18px 36px;background:#fff8e6;color:#76531c">'
+                    '<h2 style="margin:0 0 8px;font-size:15px">' + escape(title) + '</h2>'
+                    '<p style="margin:0;font-size:13px;line-height:1.7;overflow-wrap:anywhere">'
+                    + note_html + '</p></td></tr>')
     if meta.get("failure"):
         lines.append(labels["failure"])
         lines.extend("- " + str(error) for error in meta.get("errors", []))

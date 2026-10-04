@@ -83,6 +83,12 @@ digests. Read the concise README, `docs/agent-workflow.md` and
 - Use `agent-revise` only for a user-requested revised edition of a confirmed sent
   agent job. Keep the same audience ledger and old files; no sends happen during
   preparation. Never edit sent history or clear deduplication to resend.
+- For an explicitly requested correction to a completed, never-claimed connector
+  preparation, use `agent-supersede JOB_ID --reason TEXT` with the exact original
+  config. It preserves old artifacts and evidence, atomically marks the original
+  superseded, and exports a distinct successor with the same dates and audience.
+  Re-register figures in that successor; validate/finalize and review before any
+  authorized send. Claimed/uncertain/sent entries are ineligible; never reset them.
 - Run `python -m unittest discover -s tests -v`, compile checks and offline CLI
   smoke tests. Use synthetic adapters, not real SMTP/model calls, for tests.
 - Report what was verified and what was not. Configuration validation and stub

@@ -202,7 +202,7 @@ def begin_send(config, identifier, now=None):
             from .agent_jobs import validate_revision_delivery
             if state.payload_has_sent_aliases(item["payload"]) and not validate_revision_delivery(state, item["payload"]):
                 raise ValueError("Outbox contains already-sent papers")
-            state.status(identifier, "sending")
+            state.claim_connector(identifier)
             return {**_result(state.get(identifier)), "send_claimed": True,
                     "next": "Call the authorized connected-mail tool exactly once with the immutable envelope; import its actual receipt. Any uncertain result stays pending."}
     finally:
