@@ -1,6 +1,6 @@
 """Offline lifecycle, evidence integrity and transaction tests for supersession."""
 import copy
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, redirect_stderr
 from datetime import timedelta
 import io
 import json
@@ -13,6 +13,7 @@ import test_agent_jobs as fixtures
 from literature_digest.agent_jobs import create_job, _load, _save, tool
 from literature_digest.agent_supersede import supersede_job, _commit_successor
 from literature_digest.cli import main
+from literature_digest.config import load_configs
 from literature_digest.connector_delivery import begin_send
 from literature_digest.outlook import empty_outlook
 
@@ -308,13 +309,17 @@ class AgentSupersede(unittest.TestCase):
         self.assertIsNone(self.h.state().send_claim(successor['job_id']))
 
     def test_cli_supersede_works_without_model_or_send_and_requires_reason(self):
-        job, _ = self.prepare()
         path = self.h.root/'config.json'
         path.write_text(json.dumps(self.config), encoding='utf-8')
+        # CLI-created jobs use resolved paths. Windows temporary paths may use
+        # short aliases, so prepare with the same canonical config as the CLI.
+        self.config = self.h.config = load_configs(str(path))[0]
+        job, _ = self.prepare()
         output = io.StringIO()
-        with redirect_stdout(output), patch('literature_digest.agent_sources.search') as search, patch('literature_digest.mail.send_smtp') as send:
+        errors = io.StringIO()
+        with redirect_stdout(output), redirect_stderr(errors), patch('literature_digest.agent_sources.search') as search, patch('literature_digest.mail.send_smtp') as send:
             code = main(['--config',str(path),'agent-supersede',job['job_id'],'--reason',self.reason])
-        self.assertEqual(code, 0, output.getvalue())
+        self.assertEqual(code, 0, output.getvalue() + errors.getvalue())
         parsed = json.loads(output.getvalue())
         self.assertEqual(parsed['status'], 'awaiting_agent')
         self.assertNotEqual(parsed['job_id'], job['job_id'])
